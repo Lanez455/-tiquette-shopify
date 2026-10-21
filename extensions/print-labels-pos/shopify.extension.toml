@@ -1,0 +1,24 @@
+# Étiquettes depuis la caisse Shopify POS (F15) : tuile d'accueil pour le
+# panier en cours, et menu de la fiche produit.
+api_version = "2026-10"
+
+[[extensions]]
+name = "Étiquettes code-barres"
+handle = "print-labels-pos"
+type = "ui_extension"
+
+[[extensions.targeting]]
+module = "./src/Tile.tsx"
+target = "pos.home.tile.render"
+
+[[extensions.targeting]]
+module = "./src/CartModal.tsx"
+target = "pos.home.modal.render"
+
+[[extensions.targeting]]
+module = "./src/ProductMenuItem.tsx"
+target = "pos.product-details.action.menu-item.render"
+
+[[extensions.targeting]]
+module = "./src/ProductModal.tsx"
+target = "pos.product-details.action.render"

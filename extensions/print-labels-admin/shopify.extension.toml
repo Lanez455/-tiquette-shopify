@@ -1,0 +1,16 @@
+# Bouton « Imprimer > Étiquettes » de l'admin (F15) : fiche produit et
+# sélection de produits dans la liste.
+api_version = "2026-10"
+
+[[extensions]]
+name = "Étiquettes code-barres"
+handle = "print-labels-admin"
+type = "ui_extension"
+
+[[extensions.targeting]]
+module = "./src/PrintAction.tsx"
+target = "admin.product-details.print-action.render"
+
+[[extensions.targeting]]
+module = "./src/PrintAction.tsx"
+target = "admin.product-index.selection-print-action.render"
