@@ -1,0 +1,100 @@
+// SQLite en développement. En production, passer provider à "postgresql".
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+// Sessions OAuth, format imposé par @shopify/shopify-app-session-storage-prisma
+model Session {
+  id                  String    @id
+  shop                String
+  state               String
+  isOnline            Boolean   @default(false)
+  scope               String?
+  expires             DateTime?
+  accessToken         String
+  userId              BigInt?
+  firstName           String?
+  lastName            String?
+  email               String?
+  accountOwner        Boolean   @default(false)
+  locale              String?
+  collaborator        Boolean?  @default(false)
+  emailVerified       Boolean?  @default(false)
+  refreshToken        String?
+  refreshTokenExpires DateTime?
+}
+
+// Réglages par boutique (écran Réglages)
+model ShopSettings {
+  shop                String   @id
+  // "zero" | "one" | "stock" : jamais 1 imposé (reproche n°1 de l'app officielle)
+  defaultQuantity     String   @default("zero")
+  defaultTemplateId   String?
+  offsetXmm           Float    @default(0)
+  offsetYmm           Float    @default(0)
+  // "pdf" | "zebra" | "dymo"
+  printMethod         String   @default("pdf")
+  // Symbologie des codes générés : "ean13" | "upca" | "code128"
+  barcodeSymbology    String   @default("ean13")
+  updatedAt           DateTime @updatedAt
+}
+
+// Modèle d'étiquette : format + mise en page (JSON validé côté app)
+model LabelTemplate {
+  id           String   @id @default(cuid())
+  shop         String
+  name         String
+  // Identifiant d'un format prêt (app/lib/labels/formats.ts) ou "custom"
+  formatId     String
+  // Dimensions en mm, copiées du format pour qu'une mise à jour de l'app
+  // ne change jamais un modèle existant
+  widthMm      Float
+  heightMm     Float
+  shape        String   @default("rect")
+  layoutJson   String
+  // Collections associées (F20), séparées par des virgules
+  collectionIds String  @default("")
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  @@index([shop])
+}
+
+// Historique d'impression (F16)
+model PrintJob {
+  id          String   @id @default(cuid())
+  shop        String
+  templateId  String
+  source      String   // "product" | "purchase_order" | "transfer" | "csv" | "pos" | "receiving" | "promo"
+  itemsJson   String   // [{ variantId, quantity }]
+  labelCount  Int
+  createdAt   DateTime @default(now())
+
+  @@index([shop, createdAt])
+}
+
+// Compteur de codes internes par boutique (F10) : jamais dérivé de l'ID de variante
+model BarcodeCounter {
+  shop      String @id
+  nextValue Int    @default(1)
+}
+
+// Journal de chaque écriture de code-barres, avec l'ancienne valeur pour revenir en arrière (F11)
+model BarcodeChange {
+  id         String   @id @default(cuid())
+  shop       String
+  variantId  String
+  oldValue   String?
+  newValue   String
+  reason     String   // "generated" | "replace_confirmed" | "gtin_import" | "rollback"
+  batchId    String
+  createdAt  DateTime @default(now())
+
+  @@index([shop, batchId])
+  @@index([shop, variantId])
+}
