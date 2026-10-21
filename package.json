@@ -8,6 +8,7 @@
     "dev": "shopify app dev",
     "deploy": "shopify app deploy",
     "start": "react-router-serve ./build/server/index.js",
+    "docker-start": "prisma migrate deploy && npm run start",
     "postinstall": "prisma generate",
     "setup": "prisma generate && prisma migrate deploy",
     "typecheck": "react-router typegen && tsc --noEmit && tsc -p extensions/tsconfig.json",
