@@ -18,6 +18,7 @@ const item = {
   compareAtPrice: "39.90",
   sku: "BO-LUNE-925",
   barcode: buildInternalCode("ean13", 123),
+  productUrl: "https://atelier-lune.fr/products/creoles-argent-925-lune",
 };
 
 const rows: string[] = [];

@@ -225,7 +225,7 @@ export default function Print() {
     setBusy(true);
     setMessage(null);
     let note = "";
-    let fallback = false;
+    let fallbackJobId: string | undefined;
 
     // Impression directe (F17) ; en cas d'échec, repli automatique sur le PDF
     const isIpad = /iPad|Macintosh/.test(navigator.userAgent) && navigator.maxTouchPoints > 1;
@@ -239,14 +239,16 @@ export default function Print() {
           return done(direct.direct.reduce((s, g) => s + g.labelCount, 0), direct.direct.flatMap((g) => g.warnings));
         } catch (error) {
           note = `${printer} injoignable (${error instanceof Error ? error.message : "erreur"}) : impression en PDF.`;
-          fallback = true;
+          fallbackJobId = direct.jobId;
         }
       } else {
         note = `${direct.error ?? `Impression ${printer} impossible`} Impression en PDF.`;
       }
     }
 
-    const result = await requestPrint({ ...body(false), fallback });
+    const result = await requestPrint(
+      fallbackJobId ? { reprintJobId: fallbackJobId, fallback: true, start: body(false).start } : body(false),
+    );
     setBusy(false);
     if (result.error || !result.groups) return setMessage({ tone: "critical", text: result.error ?? "Impression impossible" });
     for (const group of result.groups) await printPdfUrl(pdfUrl(group.pdfBase64)).catch(() => undefined);

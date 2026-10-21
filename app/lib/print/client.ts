@@ -4,6 +4,8 @@ import type { DirectGroup } from "./direct";
 export interface PrintResponse {
   groups?: { templateName: string; labelCount: number; warnings: string[]; pdfBase64: string }[];
   direct?: DirectGroup[];
+  // Impression enregistrée, rejouée en PDF si l'imprimante ne répond pas
+  jobId?: string;
   error?: string;
 }
 

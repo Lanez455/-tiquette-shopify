@@ -21,7 +21,8 @@ interface PrintRequest {
   reprintJobId?: string;
   // Impression directe (F17) : ZPL pour Zebra, fichiers d'étiquette pour Dymo
   output?: "pdf" | DirectOutput;
-  // Repli sur le PDF après l'échec d'une impression directe : déjà dans l'historique
+  // Repli sur le PDF après l'échec d'une impression directe : rejoue l'impression
+  // `reprintJobId`, déjà comptée et enregistrée il y a moins de 10 minutes
   fallback?: boolean;
 }
 
@@ -36,9 +37,11 @@ export const action = async ({ request }: ActionFunctionArgs) => {
   let lines = body.lines ?? [];
   let templateId = body.templateId ?? "auto";
   let source = SOURCES.has(body.source ?? "") ? body.source! : "product";
+  let fallback = false;
   if (body.reprintJobId) {
     const job = await prisma.printJob.findFirst({ where: { id: body.reprintJobId, shop: session.shop } });
     if (!job) return Response.json({ error: "Impression introuvable" }, { status: 404 });
+    fallback = body.fallback === true && Date.now() - job.createdAt.getTime() < 10 * 60 * 1000;
     lines = JSON.parse(job.itemsJson) as PrintLine[];
     templateId = job.templateId;
     source = job.source;
@@ -47,7 +50,7 @@ export const action = async ({ request }: ActionFunctionArgs) => {
   try {
     const output = body.output === "zpl" || body.output === "dymo" ? body.output : "pdf";
     // Formule : quota mensuel et fonctions incluses (un repli sur le PDF est déjà compté)
-    if (!body.preview && !body.fallback) {
+    if (!body.preview && !fallback) {
       const labels = lines.reduce((sum, l) => sum + (l.quantity > 0 ? l.quantity : 0), 0);
       await enforcePrint(gql, session.shop, { source, output, labels });
     }
@@ -71,8 +74,9 @@ export const action = async ({ request }: ActionFunctionArgs) => {
       const printed = new Set(lines.filter((l) => l.quantity > 0).map((l) => l.variantId));
       await recordPrintedPrices(session.shop, variants.filter((v) => printed.has(v.variantId)));
     }
-    if (!body.preview && !body.fallback) {
-      await prisma.printJob.create({
+    let jobId: string | undefined;
+    if (!body.preview && !fallback) {
+      const job = await prisma.printJob.create({
         data: {
           shop: session.shop,
           templateId,
@@ -81,8 +85,9 @@ export const action = async ({ request }: ActionFunctionArgs) => {
           labelCount: groups.reduce((sum, g) => sum + g.labelCount, 0),
         },
       });
+      jobId = job.id;
     }
-    if (direct) return Response.json({ direct });
+    if (direct) return Response.json({ direct, jobId });
     return Response.json({
       groups: groups.map((g) => ({
         templateName: g.templateName,
