@@ -38,5 +38,5 @@ Critères de validation : voir docs/SPEC.md. Tout est écrit et testé (tests au
 
 ## Lancement
 - [x] Formules Gratuit, Pro, Magasin (API de facturation ; à essayer sur une boutique de développement)
-- [ ] Test de non-régression des PDF
+- [x] Test de non-régression des PDF (simulateur : impression, scan et marges de chaque format)
 - [ ] Dossier de revue Shopify
