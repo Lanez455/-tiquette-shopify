@@ -5,8 +5,8 @@ import { getFormat } from "../labels/formats";
 import type { ResolvedTemplate } from "../labels/templates.server";
 import { FakeShop } from "~/testing/fakeShop";
 import { printPdf, scanPrinted } from "~/testing/printSimulator";
-import { PrintJobError } from "./job";
-import { AUTO_TEMPLATE, renderPrintGroups } from "./render";
+import { AUTO_TEMPLATE, PrintJobError } from "./job";
+import { renderPrintGroups } from "./render.server";
 
 const template = (id: string, formatId: string, collectionIds: string[] = []): ResolvedTemplate => {
   const format = getFormat(formatId)!;

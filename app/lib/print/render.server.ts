@@ -1,10 +1,10 @@
 import type { ResolvedTemplate } from "../labels/templates.server";
-import { renderLabels } from "../labels/pdf";
+import { renderLabels } from "../labels/pdf.server";
 import type { PriceOptions } from "../labels/price";
 import type { StartCell } from "../labels/sheet";
 import { fetchVariantsForLabels, type LabelVariant } from "../shopify/catalog";
 import type { Gql } from "../shopify/graphql";
-import { expandLines, groupLinesByTemplate, PrintJobError, type PrintLine } from "./job";
+import { AUTO_TEMPLATE, expandLines, groupLinesByTemplate, PrintJobError, type PrintLine } from "./job";
 
 export interface PrintSettings {
   offsetXmm: number;
@@ -22,7 +22,6 @@ export interface PrintGroup {
   warnings: string[];
 }
 
-export const AUTO_TEMPLATE = "auto";
 
 // Prépare une ou plusieurs impressions (une par modèle) à partir des lignes choisies
 export async function renderPrintGroups(args: {

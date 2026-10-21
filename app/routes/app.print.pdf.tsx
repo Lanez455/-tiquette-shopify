@@ -4,7 +4,7 @@ import { authenticate } from "../shopify.server";
 import { listTemplates } from "../lib/labels/templates.server";
 import { PrintJobError, type PrintLine } from "../lib/print/job";
 import { printContext } from "../lib/print/context.server";
-import { renderPrintGroups } from "../lib/print/render";
+import { renderPrintGroups } from "../lib/print/render.server";
 import { gqlFromAdmin } from "../lib/shopify/graphql";
 
 interface PrintRequest {

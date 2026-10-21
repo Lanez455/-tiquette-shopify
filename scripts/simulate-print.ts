@@ -5,7 +5,7 @@ import { mkdirSync, writeFileSync } from "node:fs";
 import { buildInternalCode } from "../app/lib/barcode/generate";
 import { defaultLayout } from "../app/lib/labels/defaultLayouts";
 import { FORMATS } from "../app/lib/labels/formats";
-import { renderLabels } from "../app/lib/labels/pdf";
+import { renderLabels } from "../app/lib/labels/pdf.server";
 import { inkMarginMm, printPdf, scanPrinted, toPng } from "../app/testing/printSimulator";
 
 const dpi = Number(process.argv[2] ?? 203) as 203 | 300;

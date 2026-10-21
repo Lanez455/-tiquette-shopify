@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import { PDFDocument } from "pdf-lib";
 import { fitText } from "./fitText";
 import { customFormat, FORMATS, getFormat } from "./formats";
-import { renderLabels } from "./pdf";
+import { renderLabels } from "./pdf.server";
 import { formatPrice } from "./price";
 import { layoutSlots } from "./sheet";
 import type { LabelTemplateLayout } from "./template";

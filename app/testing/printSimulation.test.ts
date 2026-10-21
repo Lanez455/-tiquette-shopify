@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import { buildInternalCode, type Symbology } from "~/lib/barcode/generate";
 import { defaultLayout } from "~/lib/labels/defaultLayouts";
 import { FORMATS } from "~/lib/labels/formats";
-import { renderLabels } from "~/lib/labels/pdf";
+import { renderLabels } from "~/lib/labels/pdf.server";
 import { layoutSlots } from "~/lib/labels/sheet";
 import { cropMm, hasInk, inkMarginMm, printPdf, scanPrinted } from "./printSimulator";
 

@@ -1,6 +1,9 @@
 import type { LabelVariant } from "../shopify/catalog";
 import type { LabelItem } from "../labels/template";
 
+// Choix « automatique selon la collection » dans la liste des modèles (F20)
+export const AUTO_TEMPLATE = "auto";
+
 export type DefaultQuantity = "zero" | "one" | "stock";
 
 // Quantité proposée à l'ouverture (F13). Jamais 1 imposé : c'est le réglage du marchand.

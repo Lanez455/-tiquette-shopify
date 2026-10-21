@@ -1,7 +1,7 @@
 import { getSettings } from "../settings.server";
 import { fetchShopFormat } from "../shopify/catalog";
 import type { Gql } from "../shopify/graphql";
-import type { PrintSettings } from "./render";
+import type { PrintSettings } from "./render.server";
 
 export const DEFAULT_TEMPLATE = "builtin:dymo-30336";
 
