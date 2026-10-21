@@ -32,6 +32,17 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
   };
 };
 
+// Origine de l'impression, telle qu'enregistrée dans l'historique
+const SOURCE_LABELS: Record<string, string> = {
+  product: "Produits",
+  purchase_order: "Bon de commande",
+  transfer: "Transfert",
+  csv: "Fichier CSV",
+  pos: "Caisse",
+  receiving: "Réception",
+  promo: "Prix changés",
+};
+
 export default function Home() {
   const { recentJobs } = useLoaderData<typeof loader>();
   const [busy, setBusy] = useState<string | null>(null);
@@ -58,7 +69,7 @@ export default function Home() {
           <s-unordered-list>
             {recentJobs.map((job) => (
               <s-list-item key={job.id}>
-                {new Date(job.createdAt).toLocaleString("fr-FR")} · {job.source} · {job.labelCount} étiquettes{" "}
+                {new Date(job.createdAt).toLocaleString("fr-FR")} · {SOURCE_LABELS[job.source] ?? job.source} · {job.labelCount} étiquettes{" "}
                 <s-button variant="tertiary" disabled={busy !== null} onClick={() => reprint(job.id)}>
                   {busy === job.id ? "Préparation…" : "Réimprimer"}
                 </s-button>
