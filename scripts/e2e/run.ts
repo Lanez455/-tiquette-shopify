@@ -143,6 +143,14 @@ async function main() {
     assert(res.status === 200 && html.includes("app-bridge") && !html.includes("Impression"), `statut ${res.status} : ${html.slice(0, 300)}`);
     return "page de rebond App Bridge, sans contenu de l'app";
   });
+  await check("Pages publiques : confidentialité et contrôle de santé", async () => {
+    const privacy = await fetch(`${APP}/confidentialite`);
+    const html = await privacy.text();
+    assert(privacy.status === 200 && html.includes("Politique de confidentialité") && html.includes("Privacy policy"), `confidentialité : statut ${privacy.status}`);
+    const health = await fetch(`${APP}/healthz`);
+    assert(health.status === 200 && (await health.text()) === "ok", `healthz : statut ${health.status}`);
+    return "200 et 200";
+  });
   await check("Jeton signé avec un mauvais secret refusé", async () => {
     const [h, p] = sessionToken().split(".");
     const forged = `${h}.${p}.${b64url(createHmac("sha256", "faux").update(`${h}.${p}`).digest())}`;

@@ -56,8 +56,10 @@ fly volumes create donnees --region cdg --size 1
 Les secrets ne sont jamais écrits dans un fichier du projet :
 
 ```
-fly secrets set SHOPIFY_API_KEY=<client_id> SHOPIFY_API_SECRET=<clé secrète> SHOPIFY_APP_URL=https://<nom>.fly.dev
+fly secrets set SHOPIFY_API_KEY=<client_id> SHOPIFY_API_SECRET=<clé secrète> SHOPIFY_APP_URL=https://<nom>.fly.dev SUPPORT_EMAIL=<votre e-mail de support>
 ```
+
+L'e-mail de support s'affiche sur la politique de confidentialité, publiée à `https://<nom>.fly.dev/confidentialite`. C'est cette adresse qu'il faut donner dans la fiche de l'App Store.
 
 Les abonnements restent en mode test (non facturés) tant que `BILLING_TEST` ne vaut pas `false`. Gardez ce réglage jusqu'à l'accord de Shopify.
 Le jour où vous facturez pour de vrai : `fly secrets set BILLING_TEST=false`
