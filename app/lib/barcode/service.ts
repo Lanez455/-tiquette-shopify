@@ -2,6 +2,7 @@ import { fetchCatalogBarcodes, writeBarcodes, type CatalogVariant } from "../sho
 import type { Gql } from "../shopify/graphql";
 import type { Symbology } from "./generate";
 import { planBarcodes, type BarcodeAssignment, type PlanMode } from "./plan";
+import { planGs1Import, type Gs1Row } from "./gs1";
 
 // Stockage du compteur et du journal, séparé pour être testé sans base de données
 export interface BarcodeStore {
@@ -79,4 +80,27 @@ export async function rollbackBatch(gql: Gql, store: BarcodeStore, shop: string,
     );
   }
   return { restored: reverse.length, skipped, batchId: rollbackId };
+}
+
+// Import GS1 (F19) : relit le catalogue, vérifie, journalise puis écrit
+export async function importGs1(
+  gql: Gql,
+  store: BarcodeStore,
+  shop: string,
+  rows: Gs1Row[],
+  confirmation?: string,
+  newBatchId: () => string = () => crypto.randomUUID(),
+) {
+  const catalog = await fetchCatalogBarcodes(gql);
+  const plan = planGs1Import(rows, catalog, confirmation);
+  const batchId = newBatchId();
+  if (plan.assignments.length) {
+    const productOf = new Map(catalog.map((v) => [v.variantId, v.productId]));
+    await store.appendJournal(shop, batchId, "gtin_import", plan.assignments);
+    await writeBarcodes(
+      gql,
+      plan.assignments.map((a) => ({ variantId: a.variantId, productId: productOf.get(a.variantId)!, barcode: a.newValue })),
+    );
+  }
+  return { batchId, ...plan };
 }

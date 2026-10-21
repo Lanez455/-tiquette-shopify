@@ -30,7 +30,7 @@ const HEADERS: Record<string, KeyKind | "quantity"> = {
 };
 
 // Découpe une ligne CSV en champs, guillemets doublés compris
-function splitLine(text: string, delimiter: string): string[] {
+export function splitLine(text: string, delimiter: string): string[] {
   const fields: string[] = [];
   let field = "";
   let quoted = false;
@@ -49,7 +49,7 @@ function splitLine(text: string, delimiter: string): string[] {
 }
 
 // Découpe en lignes en respectant les retours à la ligne entre guillemets
-function splitRecords(text: string): string[] {
+export function splitRecords(text: string): string[] {
   const records: string[] = [];
   let current = "";
   let quoted = false;
@@ -65,7 +65,7 @@ function splitRecords(text: string): string[] {
   return records;
 }
 
-function detectDelimiter(first: string): string {
+export function detectDelimiter(first: string): string {
   const counts = [";", ",", "\t"].map((d) => [d, first.split(d).length] as const);
   counts.sort((a, b) => b[1] - a[1]);
   return counts[0]![1] > 1 ? counts[0]![0] : ",";

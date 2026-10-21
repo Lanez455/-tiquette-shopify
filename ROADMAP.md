@@ -31,7 +31,7 @@ Critères de validation : voir docs/SPEC.md. « Cœur » = la logique est écrit
 - [x] F18 Réception par scan (mutation vérifiée sur la référence : clé d'idempotence obligatoire depuis 2026-04)
 
 ## Codes GS1, modèles et promotions
-- [ ] F19 Import GS1
+- [x] F19 Import GS1
 - [ ] F20 Modèle automatique par collection
 - [ ] F21 Réétiquetage des promotions
 - [ ] F22 Étiquettes de rayon et QR codes

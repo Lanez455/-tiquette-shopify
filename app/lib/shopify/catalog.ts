@@ -5,19 +5,20 @@ export interface CatalogVariant {
   variantId: string;
   productId: string;
   barcode: string | null;
+  sku?: string | null;
 }
 
 const VARIANT_BARCODES = `#graphql
   query VariantBarcodes($after: String) {
     productVariants(first: 250, after: $after) {
-      nodes { id barcode product { id } }
+      nodes { id barcode sku product { id } }
       pageInfo { hasNextPage endCursor }
     }
   }`;
 
 interface VariantBarcodesData {
   productVariants: {
-    nodes: { id: string; barcode: string | null; product: { id: string } }[];
+    nodes: { id: string; barcode: string | null; sku: string | null; product: { id: string } }[];
     pageInfo: { hasNextPage: boolean; endCursor: string | null };
   };
 }
@@ -29,7 +30,7 @@ export async function fetchCatalogBarcodes(gql: Gql): Promise<CatalogVariant[]> 
   do {
     const data: VariantBarcodesData = await gql<VariantBarcodesData>(VARIANT_BARCODES, { after });
     for (const node of data.productVariants.nodes) {
-      result.push({ variantId: node.id, productId: node.product.id, barcode: node.barcode });
+      result.push({ variantId: node.id, productId: node.product.id, barcode: node.barcode, sku: node.sku });
     }
     after = data.productVariants.pageInfo.hasNextPage ? data.productVariants.pageInfo.endCursor : null;
   } while (after);

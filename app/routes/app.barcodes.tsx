@@ -3,7 +3,8 @@ import { Form, useActionData, useLoaderData, useNavigation } from "react-router"
 import prisma from "../db.server";
 import { authenticate } from "../shopify.server";
 import { findDuplicates, ConfirmationRequiredError, replaceConfirmationPhrase } from "../lib/barcode/plan";
-import { generateBarcodes, rollbackBatch } from "../lib/barcode/service";
+import { generateBarcodes, importGs1, rollbackBatch } from "../lib/barcode/service";
+import { parseGs1Input } from "../lib/barcode/gs1";
 import { prismaBarcodeStore } from "../lib/barcode/store.server";
 import { fetchCatalogBarcodes } from "../lib/shopify/catalog";
 import { gqlFromAdmin } from "../lib/shopify/graphql";
@@ -48,6 +49,24 @@ export const action = async ({ request }: ActionFunctionArgs) => {
     return { message: `${result.restored} codes restaurés${result.skipped ? `, ${result.skipped} laissés car modifiés depuis` : ""}.` };
   }
 
+  if (intent === "gs1-import") {
+    const { rows, errors } = parseGs1Input(String(form.get("gtins") ?? ""));
+    if (!rows.length) return { error: errors.map((e) => `ligne ${e.line} : ${e.message}`).slice(0, 10).join(" ; ") || "Aucun GTIN valide" };
+    try {
+      const result = await importGs1(gql, prismaBarcodeStore, session.shop, rows, String(form.get("confirmation") ?? "") || undefined);
+      const issues = [...errors, ...result.problems].sort((a, b) => a.line - b.line);
+      const parts = [`${result.assignments.length} GTIN attribués.`];
+      if (result.unused.length) parts.push(`${result.unused.length} GTIN libres non utilisés (plus de variante sans code) : gardez-les pour vos prochains produits.`);
+      if (issues.length) parts.push(`${issues.length} ligne(s) refusée(s) : ${issues.slice(0, 10).map((e) => `ligne ${e.line} : ${e.message}`).join(" ; ")}${issues.length > 10 ? " ; …" : ""}`);
+      return issues.length ? { warning: parts.join(" ") } : { message: parts.join(" ") };
+    } catch (error) {
+      if (error instanceof ConfirmationRequiredError) {
+        return { error: `${error.message} : certaines variantes ont déjà un code, il sera remplacé.`, needsConfirmation: true };
+      }
+      throw error;
+    }
+  }
+
   const catalog = await fetchCatalogBarcodes(gql);
   if (intent === "generate-missing") {
     const ids = catalog.filter((v) => !v.barcode?.trim()).map((v) => v.variantId);
@@ -86,6 +105,7 @@ export default function Barcodes() {
     <s-page heading="Codes-barres">
       {result && "message" in result && <s-banner tone="success">{result.message}</s-banner>}
       {result && "error" in result && <s-banner tone="critical">{result.error}</s-banner>}
+      {result && "warning" in result && <s-banner tone="warning">{result.warning}</s-banner>}
 
       <s-section heading="Couverture du catalogue">
         <s-paragraph>
@@ -111,6 +131,32 @@ export default function Barcodes() {
             ))}
           </s-unordered-list>
         )}
+      </s-section>
+
+      <s-section heading="Importer mes GTIN GS1">
+        <s-paragraph>
+          Pour vendre sur Google Shopping ou chez un revendeur, il faut des GTIN achetés auprès de GS1 : l'app n'en crée
+          jamais. Collez-les ou importez le fichier : une colonne « GTIN », et si vous voulez choisir la variante, une
+          colonne « SKU ». Sans SKU, chaque GTIN va à une variante qui n'a pas encore de code. Chaque clé de contrôle est
+          vérifiée.
+        </s-paragraph>
+        <Form method="post">
+          <input type="hidden" name="intent" value="gs1-import" />
+          <s-text-area name="gtins" label="GTIN (un par ligne, ou « SKU;GTIN »)" rows={6}></s-text-area>
+          <input
+            type="file"
+            accept=".csv,.txt,text/csv"
+            onChange={async (e) => {
+              const file = e.currentTarget.files?.[0];
+              const area = e.currentTarget.form?.querySelector<HTMLElement & { value: string }>("s-text-area");
+              if (file && area && file.size < 2_000_000) area.value = await file.text();
+            }}
+          />
+          {result && "needsConfirmation" in result && (
+            <s-text-field name="confirmation" label="Confirmation du remplacement" autocomplete="off"></s-text-field>
+          )}
+          <s-button type="submit" disabled={busy}>Importer et attribuer</s-button>
+        </Form>
       </s-section>
 
       <s-section heading="Remplacer tous les codes">

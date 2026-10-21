@@ -56,7 +56,7 @@ export class FakeShop {
     const page = all.slice(start, start + 250);
     return {
       productVariants: {
-        nodes: page.map((v) => ({ id: v.id, barcode: v.barcode, product: { id: v.productId } })),
+        nodes: page.map((v) => ({ id: v.id, barcode: v.barcode, sku: v.sku, product: { id: v.productId } })),
         pageInfo: { hasNextPage: start + 250 < all.length, endCursor: String(start + 250) },
       },
     };
