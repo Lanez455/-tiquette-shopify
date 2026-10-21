@@ -5,6 +5,7 @@ import { authenticate } from "../shopify.server";
 import { listTemplates } from "../lib/labels/templates.server";
 import { AUTO_TEMPLATE, initialQuantity, MAX_PER_LINE, type DefaultQuantity } from "../lib/print/job";
 import { pdfUrl, printPdfUrl, requestPrint } from "../lib/print/client";
+import { sendDirect } from "../lib/print/direct";
 import { getSettings } from "../lib/settings.server";
 import { expandToVariantIds, fetchVariantIdsByFilter, fetchVariantsForLabels } from "../lib/shopify/catalog";
 import { gqlFromAdmin, type Gql } from "../lib/shopify/graphql";
@@ -52,6 +53,7 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
     templates: templates.map((t) => ({ id: t.id, name: t.name, sheet: t.format.kind === "sheet", hasRules: t.collectionIds.length > 0 })),
     defaultTemplateId: settings.defaultTemplateId ?? "builtin:dymo-30336",
     source: url.searchParams.get("source") ?? "product",
+    printMethod: settings.printMethod === "zebra" || settings.printMethod === "dymo" ? settings.printMethod : "pdf",
   };
 };
 
@@ -186,22 +188,47 @@ export default function Print() {
     setPreview(pdfUrl(result.groups[0].pdfBase64));
   }
 
-  async function print() {
-    setBusy(true);
-    setMessage(null);
-    const result = await requestPrint(body(false));
-    setBusy(false);
-    if (result.error || !result.groups) return setMessage({ tone: "critical", text: result.error ?? "Impression impossible" });
-    for (const group of result.groups) await printPdfUrl(pdfUrl(group.pdfBase64)).catch(() => undefined);
-    const warnings = result.groups.flatMap((g) => g.warnings);
+  const done = (count: number, warnings: string[], note = "") => {
     setMessage({
-      tone: warnings.length ? "warning" : "success",
-      text: `${result.groups.reduce((s, g) => s + g.labelCount, 0)} étiquettes envoyées à l'impression.${warnings.length ? ` ${warnings.join(". ")}.` : ""}`,
+      tone: warnings.length || note ? "warning" : "success",
+      text: `${count} étiquettes envoyées à l'impression.${note ? ` ${note}` : ""}${warnings.length ? ` ${warnings.join(". ")}.` : ""}`,
     });
     // La file se vide après chaque impression (F16) ; elle reste dans l'historique
     setLines([]);
     setSource("product");
     if (params.has("ids")) setParams({});
+  };
+
+  async function print() {
+    setBusy(true);
+    setMessage(null);
+    let note = "";
+    let fallback = false;
+
+    // Impression directe (F17) ; en cas d'échec, repli automatique sur le PDF
+    const isIpad = /iPad|Macintosh/.test(navigator.userAgent) && navigator.maxTouchPoints > 1;
+    if (data.printMethod !== "pdf" && !isIpad) {
+      const printer = data.printMethod === "zebra" ? "Zebra" : "Dymo";
+      const direct = await requestPrint({ ...body(false), output: data.printMethod === "zebra" ? "zpl" : "dymo" });
+      if (direct.direct) {
+        try {
+          await sendDirect(direct.direct);
+          setBusy(false);
+          return done(direct.direct.reduce((s, g) => s + g.labelCount, 0), direct.direct.flatMap((g) => g.warnings));
+        } catch (error) {
+          note = `${printer} injoignable (${error instanceof Error ? error.message : "erreur"}) : impression en PDF.`;
+          fallback = true;
+        }
+      } else {
+        note = `${direct.error ?? `Impression ${printer} impossible`} Impression en PDF.`;
+      }
+    }
+
+    const result = await requestPrint({ ...body(false), fallback });
+    setBusy(false);
+    if (result.error || !result.groups) return setMessage({ tone: "critical", text: result.error ?? "Impression impossible" });
+    for (const group of result.groups) await printPdfUrl(pdfUrl(group.pdfBase64)).catch(() => undefined);
+    done(result.groups.reduce((s, g) => s + g.labelCount, 0), result.groups.flatMap((g) => g.warnings), note);
   }
 
   return (

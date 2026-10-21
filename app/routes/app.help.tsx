@@ -7,6 +7,7 @@ const SHEETS = [
       "Taille du papier : celle de vos étiquettes (par exemple 30336).",
       "Échelle : 100 % (pas « Ajuster à la page »). Marges : aucune.",
       "La 550 ne prend que les étiquettes Dymo d'origine (puce RFID).",
+      "Pour imprimer sans fenêtre, installez DYMO Connect, puis choisissez « Impression directe Dymo » dans Réglages.",
     ],
   },
   {
@@ -15,6 +16,8 @@ const SHEETS = [
       "Installez le pilote ZDesigner et réglez la taille d'étiquette dans ses préférences.",
       "Échelle : 100 %. Marges : aucune.",
       "Pour imprimer sans fenêtre, installez Zebra Browser Print et choisissez « Impression directe Zebra » dans Réglages.",
+      "Browser Print : choisissez votre Zebra comme imprimante par défaut, et acceptez son certificat une fois en ouvrant https://127.0.0.1:9101/ssl_support dans le navigateur.",
+      "Si la Zebra ne répond pas, l'app imprime automatiquement en PDF.",
     ],
   },
   {
@@ -35,6 +38,15 @@ const SHEETS = [
       "Papier : Lettre US. Échelle : 100 % (« Taille réelle »).",
       "Sur une planche entamée, choisissez la ligne et la colonne de départ dans l'écran Impression.",
       "Faites un essai sur papier normal et superposez-le à la planche avant d'imprimer.",
+    ],
+  },
+  {
+    printer: "Importer un fichier CSV",
+    steps: [
+      "Une colonne de code (« Code-barres », « SKU », « ID variante » ou « Code ») et une colonne « Quantité ».",
+      "Séparateur « ; » ou « , » : les deux marchent, tout comme un export Excel.",
+      "Dans Excel, mettez la colonne des codes-barres au format Texte : sinon ils deviennent 2,00E+12 et sont perdus.",
+      "Une quantité vide compte pour 1. Les lignes fautives sont listées, les autres sont ajoutées.",
     ],
   },
   {

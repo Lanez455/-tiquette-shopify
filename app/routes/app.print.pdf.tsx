@@ -5,6 +5,7 @@ import { listTemplates } from "../lib/labels/templates.server";
 import { PrintJobError, type PrintLine } from "../lib/print/job";
 import { printContext } from "../lib/print/context.server";
 import { renderPrintGroups } from "../lib/print/render.server";
+import { toDirect, type DirectOutput } from "../lib/print/direct.server";
 import { gqlFromAdmin } from "../lib/shopify/graphql";
 
 interface PrintRequest {
@@ -15,6 +16,10 @@ interface PrintRequest {
   preview?: boolean;
   // Réimpression d'une impression passée (F16)
   reprintJobId?: string;
+  // Impression directe (F17) : ZPL pour Zebra, fichiers d'étiquette pour Dymo
+  output?: "pdf" | DirectOutput;
+  // Repli sur le PDF après l'échec d'une impression directe : déjà dans l'historique
+  fallback?: boolean;
 }
 
 const SOURCES = new Set(["product", "purchase_order", "transfer", "csv", "pos", "receiving", "promo"]);
@@ -38,17 +43,23 @@ export const action = async ({ request }: ActionFunctionArgs) => {
 
   try {
     const { printSettings, fallbackTemplateId } = await printContext(gql, session.shop);
+    const output = body.output === "zpl" || body.output === "dymo" ? body.output : "pdf";
+    // Les Dymo LabelWriter impriment à 300 ppp : les barres sont calées dessus
+    if (output === "dymo") printSettings.printerDpi = 300;
+    const templates = await listTemplates(session.shop);
     const { groups } = await renderPrintGroups({
       gql,
       lines,
-      templates: await listTemplates(session.shop),
+      templates,
       templateId,
       fallbackTemplateId,
       settings: printSettings,
       start: body.start,
       preview: body.preview,
     });
-    if (!body.preview) {
+    // Conversion avant l'enregistrement : une planche refusée n'entre pas dans l'historique
+    const direct = output === "pdf" ? null : await toDirect(groups, templates, output, printSettings.printerDpi);
+    if (!body.preview && !body.fallback) {
       await prisma.printJob.create({
         data: {
           shop: session.shop,
@@ -59,6 +70,7 @@ export const action = async ({ request }: ActionFunctionArgs) => {
         },
       });
     }
+    if (direct) return Response.json({ direct });
     return Response.json({
       groups: groups.map((g) => ({
         templateName: g.templateName,

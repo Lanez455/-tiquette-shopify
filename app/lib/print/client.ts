@@ -1,6 +1,9 @@
 // Côté navigateur : ouvre le PDF dans la fenêtre d'impression du système.
+import type { DirectGroup } from "./direct";
+
 export interface PrintResponse {
   groups?: { templateName: string; labelCount: number; warnings: string[]; pdfBase64: string }[];
+  direct?: DirectGroup[];
   error?: string;
 }
 

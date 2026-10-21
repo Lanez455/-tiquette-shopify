@@ -27,7 +27,7 @@ Critères de validation : voir docs/SPEC.md. « Cœur » = la logique est écrit
 - [ ] F16 File et historique
 
 ## Impression directe et réception
-- [ ] F17 Impression directe Zebra et Dymo
+- [x] F17 Impression directe Zebra et Dymo (ZPL testé au décodage ; noms de rouleaux Dymo et service local à essayer sur machine réelle)
 - [ ] F18 Réception par scan
 
 ## Codes GS1, modèles et promotions

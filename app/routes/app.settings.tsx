@@ -48,8 +48,8 @@ export default function Settings() {
             <s-option value="dymo">Impression directe Dymo (DYMO Connect)</s-option>
           </s-select>
           <s-select name="printerDpi" label="Résolution de l'imprimante thermique" value={String(s.printerDpi)}>
-            <s-option value="203">203 ppp (la plupart des Dymo, Zebra, Rollo, Brother)</s-option>
-            <s-option value="300">300 ppp</s-option>
+            <s-option value="203">203 ppp (la plupart des Zebra, Rollo, Brother)</s-option>
+            <s-option value="300">300 ppp (Dymo LabelWriter, Zebra 300 ppp)</s-option>
           </s-select>
           <s-select name="defaultQuantity" label="Quantité proposée par défaut" value={s.defaultQuantity}>
             <s-option value="zero">0</s-option>
