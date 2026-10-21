@@ -94,3 +94,16 @@ export const SAMPLE: Record<string, string> = {
   productType: "Bijoux",
   barcodeDigits: "2000000001234",
 };
+
+export const SAMPLE_EN: Record<string, string> = {
+  title: "Sterling silver hoop earrings",
+  variantTitle: "Silver",
+  sku: "BO-LUNE-925",
+  price: "$29.90",
+  compareAtPrice: "$39.90",
+  vendor: "Moon Studio",
+  productType: "Jewelry",
+  barcodeDigits: "2000000001234",
+};
+
+export const sampleFor = (lang: "fr" | "en") => (lang === "fr" ? SAMPLE : SAMPLE_EN);

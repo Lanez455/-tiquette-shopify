@@ -1,6 +1,6 @@
 import { detectDelimiter, splitLine, splitRecords } from "../import/csv";
 import { isValidGtin, normalizeBarcode } from "./checksum";
-import { ConfirmationRequiredError, replaceConfirmationPhrase, type BarcodeAssignment } from "./plan";
+import { ConfirmationRequiredError, isReplaceConfirmed, replaceConfirmationPhrase, type BarcodeAssignment } from "./plan";
 
 // Import des GTIN achetés auprès de GS1 (F19). L'app n'en invente jamais :
 // elle vérifie la clé de contrôle et attribue seulement les codes fournis.
@@ -127,7 +127,7 @@ export function planGs1Import(rows: Gs1Row[], catalog: CatalogEntry[], confirmat
   });
 
   const replacing = assignments.filter((a) => a.oldValue).length;
-  if (replacing > 0 && confirmation !== replaceConfirmationPhrase(replacing)) {
+  if (replacing > 0 && !isReplaceConfirmed(confirmation, replacing)) {
     throw new ConfirmationRequiredError(replaceConfirmationPhrase(replacing));
   }
   return { assignments, problems, unused, replacing };

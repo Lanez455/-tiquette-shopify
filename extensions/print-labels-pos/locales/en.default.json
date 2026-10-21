@@ -1,0 +1,16 @@
+{
+  "name": "Barcode labels",
+  "lang": "en",
+  "tile": "Labels",
+  "cartItems": "{{n}} cart item(s)",
+  "emptyCart": "Add items to the cart",
+  "cartLabels": "Cart labels",
+  "item": "Item",
+  "printN": "Print {{n}} label(s)",
+  "labels": "Labels",
+  "howMany": "Number of labels",
+  "print": "Print",
+  "printLabels": "Print labels",
+  "nothing": "No labels to print",
+  "failed": "Printing failed: check the connection"
+}

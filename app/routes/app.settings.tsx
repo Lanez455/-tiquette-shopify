@@ -3,6 +3,7 @@ import { Form, useActionData, useLoaderData, useNavigation } from "react-router"
 import prisma from "../db.server";
 import { authenticate } from "../shopify.server";
 import { getSettings } from "../lib/settings.server";
+import { useT } from "../lib/i18n/react";
 
 export const loader = async ({ request }: LoaderFunctionArgs) => {
   const { session } = await authenticate.admin(request);
@@ -34,52 +35,53 @@ export const action = async ({ request }: ActionFunctionArgs) => {
 };
 
 export default function Settings() {
+  const t = useT();
   const s = useLoaderData<typeof loader>();
   const result = useActionData<typeof action>();
   const busy = useNavigation().state !== "idle";
   return (
-    <s-page heading="Réglages">
-      {result && <s-banner tone="success">{result.message}</s-banner>}
+    <s-page heading={t("Réglages")}>
+      {result && <s-banner tone="success">{t(result.message)}</s-banner>}
       <Form method="post">
-        <s-section heading="Impression">
-          <s-select name="printMethod" label="Mode d'impression" value={s.printMethod}>
-            <s-option value="pdf">Fenêtre d'impression (toutes imprimantes)</s-option>
-            <s-option value="zebra">Impression directe Zebra (Browser Print)</s-option>
-            <s-option value="dymo">Impression directe Dymo (DYMO Connect)</s-option>
+        <s-section heading={t("Impression")}>
+          <s-select name="printMethod" label={t("Mode d'impression")} value={s.printMethod}>
+            <s-option value="pdf">{t("Fenêtre d'impression (toutes imprimantes)")}</s-option>
+            <s-option value="zebra">{t("Impression directe Zebra (Browser Print)")}</s-option>
+            <s-option value="dymo">{t("Impression directe Dymo (DYMO Connect)")}</s-option>
           </s-select>
-          <s-select name="printerDpi" label="Résolution de l'imprimante thermique" value={String(s.printerDpi)}>
-            <s-option value="203">203 ppp (la plupart des Zebra, Rollo, Brother)</s-option>
-            <s-option value="300">300 ppp (Dymo LabelWriter, Zebra 300 ppp)</s-option>
+          <s-select name="printerDpi" label={t("Résolution de l'imprimante thermique")} value={String(s.printerDpi)}>
+            <s-option value="203">{t("203 ppp (la plupart des Zebra, Rollo, Brother)")}</s-option>
+            <s-option value="300">{t("300 ppp (Dymo LabelWriter, Zebra 300 ppp)")}</s-option>
           </s-select>
-          <s-select name="defaultQuantity" label="Quantité proposée par défaut" value={s.defaultQuantity}>
+          <s-select name="defaultQuantity" label={t("Quantité proposée par défaut")} value={s.defaultQuantity}>
             <s-option value="zero">0</s-option>
             <s-option value="one">1</s-option>
-            <s-option value="stock">Stock disponible</s-option>
+            <s-option value="stock">{t("Stock disponible")}</s-option>
           </s-select>
         </s-section>
 
-        <s-section heading="Réglages fins">
-          <s-paragraph>Si l'impression est décalée, corrigez-la ici. Un nombre positif décale vers la droite ou vers le bas.</s-paragraph>
-          <s-number-field name="offsetXmm" label="Décalage horizontal (mm)" step={0.5} min={-10} max={10} value={String(s.offsetXmm)}></s-number-field>
-          <s-number-field name="offsetYmm" label="Décalage vertical (mm)" step={0.5} min={-10} max={10} value={String(s.offsetYmm)}></s-number-field>
-          <s-checkbox name="rotate90" label="Tourner de 90°" checked={s.rotate90}></s-checkbox>
+        <s-section heading={t("Réglages fins")}>
+          <s-paragraph>{t("Si l'impression est décalée, corrigez-la ici. Un nombre positif décale vers la droite ou vers le bas.")}</s-paragraph>
+          <s-number-field name="offsetXmm" label={t("Décalage horizontal (mm)")} step={0.5} min={-10} max={10} value={String(s.offsetXmm)}></s-number-field>
+          <s-number-field name="offsetYmm" label={t("Décalage vertical (mm)")} step={0.5} min={-10} max={10} value={String(s.offsetYmm)}></s-number-field>
+          <s-checkbox name="rotate90" label={t("Tourner de 90°")} checked={s.rotate90}></s-checkbox>
         </s-section>
 
-        <s-section heading="Codes-barres et prix">
-          <s-select name="barcodeSymbology" label="Type des codes créés" value={s.barcodeSymbology}>
+        <s-section heading={t("Codes-barres et prix")}>
+          <s-select name="barcodeSymbology" label={t("Type des codes créés")} value={s.barcodeSymbology}>
             <s-option value="ean13">EAN-13</s-option>
             <s-option value="upca">UPC-A</s-option>
             <s-option value="code128">Code 128</s-option>
           </s-select>
-          <s-select name="currencySymbol" label="Symbole monétaire" value={s.currencySymbol}>
-            <s-option value="auto">Selon la langue de la boutique</s-option>
-            <s-option value="before">Avant le prix</s-option>
-            <s-option value="after">Après le prix</s-option>
+          <s-select name="currencySymbol" label={t("Symbole monétaire")} value={s.currencySymbol}>
+            <s-option value="auto">{t("Selon la langue de la boutique")}</s-option>
+            <s-option value="before">{t("Avant le prix")}</s-option>
+            <s-option value="after">{t("Après le prix")}</s-option>
           </s-select>
         </s-section>
 
         <s-section>
-          <s-button type="submit" variant="primary" disabled={busy}>Enregistrer</s-button>
+          <s-button type="submit" variant="primary" disabled={busy}>{t("Enregistrer")}</s-button>
         </s-section>
       </Form>
     </s-page>

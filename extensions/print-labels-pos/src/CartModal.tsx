@@ -1,7 +1,7 @@
 import "@shopify/ui-extensions/preact";
 import { render } from "preact";
 import { useState } from "preact/hooks";
-import { printLabels } from "./printLabels";
+import { printLabels, t } from "./printLabels";
 
 export default async () => {
   render(<CartModal />, document.body);
@@ -22,13 +22,13 @@ function CartModal() {
   };
 
   return (
-    <s-page heading="Étiquettes du panier">
+    <s-page heading={t("cartLabels")}>
       <s-scroll-box>
         <s-stack direction="block" gap="base">
           {lineItems.map((line, i) => (
             <s-number-field
               key={line.uuid}
-              label={line.title ?? "Article"}
+              label={line.title ?? t("item")}
               value={String(quantities[i])}
               min={0}
               max={1000}
@@ -40,7 +40,7 @@ function CartModal() {
             />
           ))}
           <s-button variant="primary" disabled={busy || !total} onClick={print}>
-            {`Imprimer ${total} étiquette(s)`}
+            {t("printN", { n: total })}
           </s-button>
         </s-stack>
       </s-scroll-box>

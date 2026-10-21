@@ -1,3 +1,5 @@
+import { useT } from "../lib/i18n/react";
+
 // Fiches d'aide par imprimante : les bons réglages de la fenêtre d'impression
 const SHEETS = [
   {
@@ -59,18 +61,19 @@ const SHEETS = [
 ];
 
 export default function Help() {
+  const t = useT();
   return (
-    <s-page heading="Aide">
+    <s-page heading={t("Aide")}>
       <s-section>
         <s-paragraph>
-          Si l'étiquette sort décalée, corrigez-la dans Réglages, section Réglages fins (par pas de 0,5 mm).
+          {t("Si l'étiquette sort décalée, corrigez-la dans Réglages, section Réglages fins (par pas de 0,5 mm).")}
         </s-paragraph>
       </s-section>
       {SHEETS.map((sheet) => (
-        <s-section key={sheet.printer} heading={sheet.printer}>
+        <s-section key={sheet.printer} heading={t(sheet.printer)}>
           <s-ordered-list>
             {sheet.steps.map((step) => (
-              <s-list-item key={step}>{step}</s-list-item>
+              <s-list-item key={step}>{t(step)}</s-list-item>
             ))}
           </s-ordered-list>
         </s-section>

@@ -8,15 +8,16 @@ import { recordPrintedPrices } from "./promo.server";
 import { createPrintLink } from "./signedLink";
 import { PlanLimitError } from "../billing/plans";
 import { enforcePrint } from "../billing/usage.server";
+import { translate, type Lang } from "../i18n";
 
 export const appSecret = () => process.env.SHOPIFY_API_SECRET ?? "";
 
 // Modèles proposés dans le bouton Imprimer de l'admin
-export async function linkOptions(gql: Gql, shop: string) {
+export async function linkOptions(gql: Gql, shop: string, lang: Lang = "fr") {
   const [templates, { fallbackTemplateId }] = await Promise.all([listTemplates(shop), printContext(gql, shop)]);
   return {
     defaultTemplateId: fallbackTemplateId,
-    templates: templates.map((t) => ({ id: t.id, name: t.name })),
+    templates: templates.map((t) => ({ id: t.id, name: t.builtin ? translate(lang, t.name) : t.name })),
   };
 }
 
@@ -38,14 +39,14 @@ async function recordJob(gql: Gql, shop: string, body: LinkRequest, source: stri
 }
 
 // Admin : renvoie l'adresse signée du PDF, que Shopify affiche puis imprime
-export async function createLinkResponse(gql: Gql, shop: string, body: LinkRequest) {
+export async function createLinkResponse(gql: Gql, shop: string, body: LinkRequest, lang: Lang = "fr") {
   try {
     const { job, plan } = await recordJob(gql, shop, body, "product");
     const query = createPrintLink({ shop, jobId: job.id }, appSecret());
     const base = (process.env.SHOPIFY_APP_URL ?? "").replace(/\/$/, "");
     return { url: `${base}/print/doc?${query}`, labelCount: plan.labelCount };
   } catch (error) {
-    if (error instanceof PrintJobError || error instanceof PlanLimitError) return { error: error.message };
+    if (error instanceof PrintJobError || error instanceof PlanLimitError) return { error: translate(lang, error.message) };
     throw error;
   }
 }
@@ -63,7 +64,7 @@ export const textResponse = (message: string, status: number) =>
   new Response(message, { status, headers: { "Content-Type": "text/plain; charset=utf-8", "Cache-Control": "no-store" } });
 
 // Caisse : la demande et le rendu se font dans le même appel
-export async function renderDirect(gql: Gql, shop: string, body: LinkRequest, source: string): Promise<Response> {
+export async function renderDirect(gql: Gql, shop: string, body: LinkRequest, source: string, lang: Lang = "fr"): Promise<Response> {
   try {
     const { job, templates } = await recordJob(gql, shop, body, source);
     const { printSettings } = await printContext(gql, shop);
@@ -71,8 +72,8 @@ export async function renderDirect(gql: Gql, shop: string, body: LinkRequest, so
     await recordPrintedPrices(shop, variants);
     return pdfResponse(pdf, job.id);
   } catch (error) {
-    if (error instanceof PrintJobError) return textResponse(error.message, 400);
-    if (error instanceof PlanLimitError) return textResponse(error.message, 402);
+    if (error instanceof PrintJobError) return textResponse(translate(lang, error.message), 400);
+    if (error instanceof PlanLimitError) return textResponse(translate(lang, error.message), 402);
     throw error;
   }
 }

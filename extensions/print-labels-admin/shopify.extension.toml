@@ -3,7 +3,7 @@
 api_version = "2026-10"
 
 [[extensions]]
-name = "Étiquettes code-barres"
+name = "t:name"
 handle = "print-labels-admin"
 type = "ui_extension"
 

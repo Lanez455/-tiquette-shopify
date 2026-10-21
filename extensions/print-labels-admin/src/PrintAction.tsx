@@ -11,8 +11,10 @@ export default async () => {
   render(<PrintAction />, document.body);
 };
 
-// Les appels fetch() vers l'app portent automatiquement le jeton Shopify
-const API = "/api/print-link";
+// Les appels fetch() vers l'app portent automatiquement le jeton Shopify.
+// La langue de l'admin suit, pour que l'app réponde dans la même langue.
+const t = (key: string, vars?: Record<string, string | number>) => String(shopify.i18n.translate(key, vars));
+const API = () => `/api/print-link?locale=${t("lang")}`;
 
 function PrintAction() {
   const ids = shopify.data.selected.map((s) => s.id);
@@ -24,13 +26,13 @@ function PrintAction() {
   const [error, setError] = useState("");
 
   useEffect(() => {
-    fetch(API)
+    fetch(API())
       .then((r) => r.json() as Promise<Options>)
       .then((o) => {
         setOptions(o);
         setTemplateId(o.defaultTemplateId);
       })
-      .catch(() => setError("Impossible de joindre l'app d'étiquettes"));
+      .catch(() => setError(t("unreachable")));
   }, []);
 
   // Chaque changement prépare un nouveau PDF : l'aperçu de Shopify suit
@@ -40,10 +42,10 @@ function PrintAction() {
     setSrc(undefined);
     setError("");
     const timer = setTimeout(() => {
-      fetch(API, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ ids: selection ? selection.split(",") : [], templateId, quantity: q }) })
+      fetch(API(), { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ ids: selection ? selection.split(",") : [], templateId, quantity: q }) })
         .then((r) => r.json() as Promise<{ url?: string; error?: string }>)
-        .then((res) => (res.url ? setSrc(res.url) : setError(res.error ?? "Erreur")))
-        .catch(() => setError("Impossible de préparer les étiquettes"));
+        .then((res) => (res.url ? setSrc(res.url) : setError(res.error ?? t("error"))))
+        .catch(() => setError(t("prepareFailed")));
     }, 300);
     return () => clearTimeout(timer);
   }, [templateId, quantity, selection]);
@@ -53,7 +55,7 @@ function PrintAction() {
       <s-stack direction="block" gap="base">
         {error && <s-banner tone="critical">{error}</s-banner>}
         <s-select
-          label="Modèle d'étiquette"
+          label={t("template")}
           value={templateId}
           onChange={(e) => setTemplateId(e.currentTarget.value)}
           disabled={!options}
@@ -64,16 +66,15 @@ function PrintAction() {
             </s-option>
           ))}
         </s-select>
-        <s-select label="Étiquettes par variante" value={quantity} onChange={(e) => setQuantity(e.currentTarget.value)}>
+        <s-select label={t("perVariant")} value={quantity} onChange={(e) => setQuantity(e.currentTarget.value)}>
           <s-option value="1">1</s-option>
           <s-option value="2">2</s-option>
           <s-option value="5">5</s-option>
           <s-option value="10">10</s-option>
-          <s-option value="stock">Autant que le stock</s-option>
+          <s-option value="stock">{t("asStock")}</s-option>
         </s-select>
         <s-text color="subdued">
-          {ids.length > 1 ? `${ids.length} produits sélectionnés.` : "Toutes les variantes du produit."} Pour choisir variante par variante,
-          ouvrez l'app.
+          {ids.length > 1 ? t("selected", { n: ids.length }) : t("allVariants")} {t("openApp")}
         </s-text>
       </s-stack>
     </s-admin-print-action>

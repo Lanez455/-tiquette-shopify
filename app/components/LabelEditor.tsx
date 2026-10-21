@@ -5,11 +5,13 @@ import {
   moveElement,
   removeElement,
   resizeElement,
-  SAMPLE,
+  sampleFor,
   updateElement,
   type Bounds,
 } from "../lib/labels/editorOps";
 import type { FieldKey, LabelElement, LabelTemplateLayout } from "../lib/labels/template";
+import type { Lang } from "../lib/i18n";
+import { useLang, useT } from "../lib/i18n/react";
 
 // Éditeur visuel par glisser-déposer (F5) : l'étiquette est dessinée à l'échelle,
 // chaque élément se déplace à la souris et se redimensionne par son coin.
@@ -18,11 +20,11 @@ const PT_TO_MM = 25.4 / 72;
 // Même règle que la validation du modèle côté serveur
 const METAFIELD = /^(product|variant)\.[\w-]+\.[\w-]+$/;
 
-function sampleText(e: LabelElement): string {
+function sampleText(e: LabelElement, lang: Lang): string {
   if (e.kind === "text") return e.text;
   if (e.kind === "barcode" || e.kind === "qr") return "";
   if (e.field.startsWith("metafield:")) return `[${e.field.split(".").slice(1).join(".")}]`;
-  return SAMPLE[e.field] ?? "";
+  return sampleFor(lang)[e.field] ?? "";
 }
 
 export function LabelEditor({
@@ -34,6 +36,8 @@ export function LabelEditor({
   layout: LabelTemplateLayout;
   onChange: (layout: LabelTemplateLayout) => void;
 }) {
+  const t = useT();
+  const lang = useLang();
   const [selected, setSelected] = useState<number | null>(null);
   const [metafield, setMetafield] = useState("product.custom.");
   const drag = useRef<{ index: number; mode: "move" | "resize"; startX: number; startY: number; origin: LabelElement } | null>(null);
@@ -126,7 +130,7 @@ export function LabelEditor({
                       : "transparent",
               }}
             >
-              {sampleText(e)}
+              {sampleText(e, lang)}
               <span
                 onPointerDown={(ev) => onPointerDown(ev, i, "resize")}
                 style={{ position: "absolute", right: 0, bottom: 0, width: 10, height: 10, background: "#005bd3", cursor: "nwse-resize" }}
@@ -138,18 +142,18 @@ export function LabelEditor({
       </div>
 
       <s-stack direction="inline" gap="small">
-        <s-select label="Ajouter un champ" onChange={(e) => e.currentTarget.value && add({ kind: "field", field: e.currentTarget.value as FieldKey })}>
-          <s-option value="">Choisir…</s-option>
+        <s-select label={t("Ajouter un champ")} onChange={(e) => e.currentTarget.value && add({ kind: "field", field: e.currentTarget.value as FieldKey })}>
+          <s-option value="">{t("Choisir…")}</s-option>
           {Object.entries(FIELD_LABELS).map(([key, label]) => (
-            <s-option key={key} value={key}>{label}</s-option>
+            <s-option key={key} value={key}>{t(label)}</s-option>
           ))}
         </s-select>
-        <s-button onClick={() => add({ kind: "barcode" })}>Code-barres</s-button>
-        <s-button onClick={() => add({ kind: "qr" })}>QR code (fiche produit)</s-button>
-        <s-button onClick={() => add({ kind: "text", text: "Texte" })}>Texte libre</s-button>
-        <s-text-field label="Métachamp (product.ns.clé ou variant.ns.clé)" value={metafield} onChange={(e) => setMetafield(e.currentTarget.value)}></s-text-field>
+        <s-button onClick={() => add({ kind: "barcode" })}>{t("Code-barres")}</s-button>
+        <s-button onClick={() => add({ kind: "qr" })}>{t("QR code (fiche produit)")}</s-button>
+        <s-button onClick={() => add({ kind: "text", text: t("Texte") })}>{t("Texte libre")}</s-button>
+        <s-text-field label={t("Métachamp (product.ns.clé ou variant.ns.clé)")} value={metafield} onChange={(e) => setMetafield(e.currentTarget.value)}></s-text-field>
         <s-button disabled={!METAFIELD.test(metafield.trim())} onClick={() => add({ kind: "field", field: `metafield:${metafield.trim()}` as FieldKey })}>
-          Ajouter le métachamp
+          {t("Ajouter le métachamp")}
         </s-button>
       </s-stack>
 
@@ -157,26 +161,26 @@ export function LabelEditor({
         <s-box padding="base" border="base" borderRadius="base">
           <s-stack direction="inline" gap="base">
             {current.kind === "text" && (
-              <s-text-field label="Texte" value={current.text} onChange={(e) => onChange(updateElement(layout, selected, { text: e.currentTarget.value }))}></s-text-field>
+              <s-text-field label={t("Texte")} value={current.text} onChange={(e) => onChange(updateElement(layout, selected, { text: e.currentTarget.value }))}></s-text-field>
             )}
             {current.kind === "qr" ? (
-              <s-text color="subdued">Le QR code ouvre la fiche du produit dans la boutique en ligne.</s-text>
+              <s-text color="subdued">{t("Le QR code ouvre la fiche du produit dans la boutique en ligne.")}</s-text>
             ) : current.kind !== "barcode" ? (
               <>
-                <s-number-field label="Taille max (pt)" min={2} max={72} value={String(current.maxFontSize)} onChange={(e) => onChange(updateElement(layout, selected, { maxFontSize: Number(e.currentTarget.value) || current.maxFontSize }))}></s-number-field>
-                <s-number-field label="Taille min (pt)" min={2} max={72} value={String(current.minFontSize)} onChange={(e) => onChange(updateElement(layout, selected, { minFontSize: Number(e.currentTarget.value) || current.minFontSize }))}></s-number-field>
-                <s-number-field label="Lignes max" min={1} max={10} value={String(current.maxLines ?? 2)} onChange={(e) => onChange(updateElement(layout, selected, { maxLines: Number(e.currentTarget.value) || 1 }))}></s-number-field>
-                <s-checkbox label="Gras" checked={current.bold} onChange={(e) => onChange(updateElement(layout, selected, { bold: e.currentTarget.checked }))}></s-checkbox>
-                <s-select label="Alignement" value={current.align ?? "left"} onChange={(e) => onChange(updateElement(layout, selected, { align: e.currentTarget.value as "left" | "center" | "right" }))}>
-                  <s-option value="left">Gauche</s-option>
-                  <s-option value="center">Centre</s-option>
-                  <s-option value="right">Droite</s-option>
+                <s-number-field label={t("Taille max (pt)")} min={2} max={72} value={String(current.maxFontSize)} onChange={(e) => onChange(updateElement(layout, selected, { maxFontSize: Number(e.currentTarget.value) || current.maxFontSize }))}></s-number-field>
+                <s-number-field label={t("Taille min (pt)")} min={2} max={72} value={String(current.minFontSize)} onChange={(e) => onChange(updateElement(layout, selected, { minFontSize: Number(e.currentTarget.value) || current.minFontSize }))}></s-number-field>
+                <s-number-field label={t("Lignes max")} min={1} max={10} value={String(current.maxLines ?? 2)} onChange={(e) => onChange(updateElement(layout, selected, { maxLines: Number(e.currentTarget.value) || 1 }))}></s-number-field>
+                <s-checkbox label={t("Gras")} checked={current.bold} onChange={(e) => onChange(updateElement(layout, selected, { bold: e.currentTarget.checked }))}></s-checkbox>
+                <s-select label={t("Alignement")} value={current.align ?? "left"} onChange={(e) => onChange(updateElement(layout, selected, { align: e.currentTarget.value as "left" | "center" | "right" }))}>
+                  <s-option value="left">{t("Gauche")}</s-option>
+                  <s-option value="center">{t("Centre")}</s-option>
+                  <s-option value="right">{t("Droite")}</s-option>
                 </s-select>
               </>
             ) : (
-              <s-checkbox label="Afficher les chiffres" checked={current.showDigits} onChange={(e) => onChange(updateElement(layout, selected, { showDigits: e.currentTarget.checked }))}></s-checkbox>
+              <s-checkbox label={t("Afficher les chiffres")} checked={current.showDigits} onChange={(e) => onChange(updateElement(layout, selected, { showDigits: e.currentTarget.checked }))}></s-checkbox>
             )}
-            <s-button tone="critical" onClick={() => { onChange(removeElement(layout, selected)); setSelected(null); }}>Retirer</s-button>
+            <s-button tone="critical" onClick={() => { onChange(removeElement(layout, selected)); setSelected(null); }}>{t("Retirer")}</s-button>
           </s-stack>
         </s-box>
       )}

@@ -4,6 +4,8 @@ import { useLoaderData } from "react-router";
 import prisma from "../db.server";
 import { authenticate } from "../shopify.server";
 import { pdfUrl, printPdfUrl, requestPrint } from "../lib/print/client";
+import { dateLocale } from "../lib/i18n";
+import { useLang, useT } from "../lib/i18n/react";
 
 const SOURCES: Record<string, string> = {
   product: "Produits",
@@ -32,18 +34,9 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
   };
 };
 
-// Origine de l'impression, telle qu'enregistrée dans l'historique
-const SOURCE_LABELS: Record<string, string> = {
-  product: "Produits",
-  purchase_order: "Bon de commande",
-  transfer: "Transfert",
-  csv: "Fichier CSV",
-  pos: "Caisse",
-  receiving: "Réception",
-  promo: "Prix changés",
-};
-
 export default function Home() {
+  const t = useT();
+  const lang = useLang();
   const { recentJobs } = useLoaderData<typeof loader>();
   const [busy, setBusy] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -59,19 +52,19 @@ export default function Home() {
   }
 
   return (
-    <s-page heading="Étiquettes code-barres">
-      <s-button slot="primary-action" href="/app/print">Imprimer des étiquettes</s-button>
-      {error && <s-banner tone="critical">{error}</s-banner>}
-      <s-section heading="Dernières impressions">
+    <s-page heading={t("Étiquettes code-barres")}>
+      <s-button slot="primary-action" href="/app/print">{t("Imprimer des étiquettes")}</s-button>
+      {error && <s-banner tone="critical">{t(error)}</s-banner>}
+      <s-section heading={t("Dernières impressions")}>
         {recentJobs.length === 0 ? (
-          <s-paragraph>Aucune impression pour l'instant.</s-paragraph>
+          <s-paragraph>{t("Aucune impression pour l'instant.")}</s-paragraph>
         ) : (
           <s-unordered-list>
             {recentJobs.map((job) => (
               <s-list-item key={job.id}>
-                {new Date(job.createdAt).toLocaleString("fr-FR")} · {SOURCE_LABELS[job.source] ?? job.source} · {job.labelCount} étiquettes{" "}
+                {new Date(job.createdAt).toLocaleString(dateLocale(lang))} · {t(job.source)} · {t("{n} étiquettes", { n: job.labelCount })}{" "}
                 <s-button variant="tertiary" disabled={busy !== null} onClick={() => reprint(job.id)}>
-                  {busy === job.id ? "Préparation…" : "Réimprimer"}
+                  {t(busy === job.id ? "Préparation…" : "Réimprimer")}
                 </s-button>
               </s-list-item>
             ))}

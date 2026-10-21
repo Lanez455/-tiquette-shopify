@@ -6,6 +6,7 @@ import { gqlFromAdmin } from "../lib/shopify/graphql";
 import { listLocations } from "../lib/shopify/receiving";
 import { can, currentPlan, PlanLimitError } from "../lib/billing/plans";
 import type { ScanResult } from "./app.receive.scan";
+import { useT } from "../lib/i18n/react";
 
 export const loader = async ({ request }: LoaderFunctionArgs) => {
   const { admin, session } = await authenticate.admin(request);
@@ -24,6 +25,7 @@ interface Received {
 }
 
 export default function Receive() {
+  const t = useT();
   const { locations, locked } = useLoaderData<typeof loader>();
   const navigate = useNavigate();
   const [locationId, setLocationId] = useState(locations[0]?.id ?? "");
@@ -43,7 +45,7 @@ export default function Receive() {
         const response = await fetch("/app/receive/scan", { method: "POST", body });
         apply((await response.json()) as ScanResult);
       } catch {
-        setLast({ tone: "critical", text: "Connexion perdue : ce scan n'a pas été compté, scannez-le à nouveau." });
+        setLast({ tone: "critical", text: t("Connexion perdue : ce scan n'a pas été compté, scannez-le à nouveau.") });
       } finally {
         setPending((n) => n - 1);
       }
@@ -51,7 +53,7 @@ export default function Receive() {
   };
 
   const apply = (r: ScanResult) => {
-    if (!r.ok) return setLast({ tone: "critical", text: r.error });
+    if (!r.ok) return setLast({ tone: "critical", text: t(r.error) });
     setReceived((list) => {
       const existing = list.find((x) => x.variantId === r.variantId);
       if (existing) {
@@ -60,7 +62,7 @@ export default function Receive() {
       }
       return r.delta > 0 ? [{ variantId: r.variantId, inventoryItemId: r.inventoryItemId, name: r.name, count: 1, stock: r.stock }, ...list] : list;
     });
-    setLast({ tone: "success", text: `${r.delta > 0 ? "+1" : "−1"} ${r.name} (stock : ${r.stock})` });
+    setLast({ tone: "success", text: t("{delta} {name} (stock : {stock})", { delta: r.delta > 0 ? "+1" : "−1", name: r.name, stock: r.stock }) });
     input.current?.focus();
   };
 
@@ -82,32 +84,32 @@ export default function Receive() {
   };
 
   return (
-    <s-page heading="Réception par scan">
-      {locked && <s-banner tone="info">{locked}</s-banner>}
+    <s-page heading={t("Réception par scan")}>
+      {locked && <s-banner tone="info">{t(locked)}</s-banner>}
       <s-section>
-        <s-select label="Magasin qui reçoit" value={locationId} onChange={(e) => setLocationId(e.currentTarget.value)}>
+        <s-select label={t("Magasin qui reçoit")} value={locationId} onChange={(e) => setLocationId(e.currentTarget.value)}>
           {locations.map((l) => (
             <s-option key={l.id} value={l.id}>{l.name}</s-option>
           ))}
         </s-select>
         <form onSubmit={scan}>
           <label>
-            Scannez un article (chaque scan ajoute 1 au stock){" "}
+            {t("Scannez un article (chaque scan ajoute 1 au stock)")}{" "}
             <input ref={input} autoFocus value={code} onChange={(e) => setCode(e.currentTarget.value)} autoComplete="off" inputMode="none" />
           </label>
         </form>
         {last && <s-banner tone={last.tone}>{last.text}</s-banner>}
       </s-section>
 
-      <s-section heading={`${total} article(s) reçu(s)`}>
+      <s-section heading={t("{n} article(s) reçu(s)", { n: total })}>
         {received.length === 0 ? (
-          <s-paragraph>Les articles scannés s'affichent ici avec leurs étiquettes à imprimer.</s-paragraph>
+          <s-paragraph>{t("Les articles scannés s'affichent ici avec leurs étiquettes à imprimer.")}</s-paragraph>
         ) : (
           <s-table>
             <s-table-header-row>
-              <s-table-header>Article</s-table-header>
-              <s-table-header>Reçus</s-table-header>
-              <s-table-header>Stock</s-table-header>
+              <s-table-header>{t("Article")}</s-table-header>
+              <s-table-header>{t("Reçus")}</s-table-header>
+              <s-table-header>{t("Stock")}</s-table-header>
               <s-table-header></s-table-header>
             </s-table-header-row>
             <s-table-body>
@@ -117,14 +119,14 @@ export default function Receive() {
                   <s-table-cell>{r.count}</s-table-cell>
                   <s-table-cell>{r.stock}</s-table-cell>
                   <s-table-cell>
-                    <s-button variant="tertiary" onClick={() => undo(r)}>Annuler 1</s-button>
+                    <s-button variant="tertiary" onClick={() => undo(r)}>{t("Annuler 1")}</s-button>
                   </s-table-cell>
                 </s-table-row>
               ))}
             </s-table-body>
           </s-table>
         )}
-        <s-button variant="primary" disabled={!total || pending > 0} onClick={printQueue}>{`Imprimer ${total} étiquette(s)`}</s-button>
+        <s-button variant="primary" disabled={!total || pending > 0} onClick={printQueue}>{t("Imprimer {n} étiquette(s)", { n: total })}</s-button>
       </s-section>
     </s-page>
   );

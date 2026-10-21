@@ -9,6 +9,8 @@ import { customFormat, FORMATS, getFormat } from "../lib/labels/formats";
 import { listTemplates } from "../lib/labels/templates.server";
 import { inToMm } from "../lib/labels/units";
 import { getSettings } from "../lib/settings.server";
+import { pickLang, translate } from "../lib/i18n";
+import { useLang, useT } from "../lib/i18n/react";
 
 export const loader = async ({ request }: LoaderFunctionArgs) => {
   const { session } = await authenticate.admin(request);
@@ -59,7 +61,8 @@ export const action = async ({ request }: ActionFunctionArgs) => {
   const row = await prisma.labelTemplate.create({
     data: {
       shop: session.shop,
-      name: String(form.get("name") || format.name),
+      // Nom par défaut dans la langue de l'écran
+      name: String(form.get("name") || translate(pickLang(String(form.get("lang") ?? "")) ?? "fr", format.name)),
       formatId: format.id,
       widthMm: format.widthMm,
       heightMm: format.heightMm,
@@ -71,36 +74,38 @@ export const action = async ({ request }: ActionFunctionArgs) => {
 };
 
 export default function Templates() {
+  const t = useT();
+  const lang = useLang();
   const data = useLoaderData<typeof loader>();
   const result = useActionData<typeof action>();
   return (
-    <s-page heading="Modèles">
-      {result && "error" in result && <s-banner tone="critical">{result.error}</s-banner>}
-      {result && "message" in result && <s-banner tone="success">{result.message}</s-banner>}
+    <s-page heading={t("Modèles")}>
+      {result && "error" in result && <s-banner tone="critical">{t(result.error)}</s-banner>}
+      {result && "message" in result && <s-banner tone="success">{t(result.message)}</s-banner>}
 
-      <s-section heading="Vos modèles">
+      <s-section heading={t("Vos modèles")}>
         <s-table>
           <s-table-header-row>
-            <s-table-header>Nom</s-table-header>
-            <s-table-header>Taille</s-table-header>
-            <s-table-header>Collections</s-table-header>
+            <s-table-header>{t("Nom")}</s-table-header>
+            <s-table-header>{t("Taille")}</s-table-header>
+            <s-table-header>{t("Collections")}</s-table-header>
             <s-table-header></s-table-header>
           </s-table-header-row>
           <s-table-body>
-            {data.templates.map((t) => (
-              <s-table-row key={t.id}>
+            {data.templates.map((tpl) => (
+              <s-table-row key={tpl.id}>
                 <s-table-cell>
-                  {t.builtin ? t.name : <s-link href={`/app/templates/${t.id}`}>{t.name}</s-link>}
-                  {t.id === data.defaultTemplateId && " (par défaut)"}
+                  {tpl.builtin ? t(tpl.name) : <s-link href={`/app/templates/${tpl.id}`}>{tpl.name}</s-link>}
+                  {tpl.id === data.defaultTemplateId && ` ${t("(par défaut)")}`}
                 </s-table-cell>
-                <s-table-cell>{t.size}</s-table-cell>
-                <s-table-cell>{t.collections || ""}</s-table-cell>
+                <s-table-cell>{tpl.size}</s-table-cell>
+                <s-table-cell>{tpl.collections || ""}</s-table-cell>
                 <s-table-cell>
-                  {t.id !== data.defaultTemplateId && (
+                  {tpl.id !== data.defaultTemplateId && (
                     <Form method="post">
                       <input type="hidden" name="intent" value="default" />
-                      <input type="hidden" name="templateId" value={t.id} />
-                      <s-button type="submit" variant="tertiary">Par défaut</s-button>
+                      <input type="hidden" name="templateId" value={tpl.id} />
+                      <s-button type="submit" variant="tertiary">{t("Par défaut")}</s-button>
                     </Form>
                   )}
                 </s-table-cell>
@@ -110,37 +115,39 @@ export default function Templates() {
         </s-table>
       </s-section>
 
-      <s-section heading="Nouveau modèle à partir d'un format prêt">
+      <s-section heading={t("Nouveau modèle à partir d'un format prêt")}>
         <Form method="post">
           <input type="hidden" name="intent" value="format" />
+          <input type="hidden" name="lang" value={lang} />
           <s-stack direction="inline" gap="base">
-            <s-select name="formatId" label="Format">
+            <s-select name="formatId" label={t("Format")}>
               {data.formats.map((f) => (
-                <s-option key={f.id} value={f.id}>{f.name}</s-option>
+                <s-option key={f.id} value={f.id}>{t(f.name)}</s-option>
               ))}
             </s-select>
-            <s-text-field name="name" label="Nom (facultatif)"></s-text-field>
-            <s-button type="submit" variant="primary">Créer et modifier</s-button>
+            <s-text-field name="name" label={t("Nom (facultatif)")}></s-text-field>
+            <s-button type="submit" variant="primary">{t("Créer et modifier")}</s-button>
           </s-stack>
         </Form>
       </s-section>
 
-      <s-section heading="Nouveau modèle en taille libre">
+      <s-section heading={t("Nouveau modèle en taille libre")}>
         <Form method="post">
           <input type="hidden" name="intent" value="custom" />
+          <input type="hidden" name="lang" value={lang} />
           <s-stack direction="inline" gap="base">
-            <s-number-field name="width" label="Largeur" min={5} max={300} step={0.1}></s-number-field>
-            <s-number-field name="height" label="Hauteur" min={5} max={300} step={0.1}></s-number-field>
-            <s-select name="unit" label="Unité">
+            <s-number-field name="width" label={t("Largeur")} min={5} max={300} step={0.1}></s-number-field>
+            <s-number-field name="height" label={t("Hauteur")} min={5} max={300} step={0.1}></s-number-field>
+            <s-select name="unit" label={t("Unité")}>
               <s-option value="mm">mm</s-option>
-              <s-option value="in">pouces</s-option>
+              <s-option value="in">{t("pouces")}</s-option>
             </s-select>
-            <s-select name="shape" label="Forme">
-              <s-option value="rect">Rectangle</s-option>
-              <s-option value="round">Rond</s-option>
+            <s-select name="shape" label={t("Forme")}>
+              <s-option value="rect">{t("Rectangle")}</s-option>
+              <s-option value="round">{t("Rond")}</s-option>
             </s-select>
-            <s-text-field name="name" label="Nom"></s-text-field>
-            <s-button type="submit">Créer et modifier</s-button>
+            <s-text-field name="name" label={t("Nom")}></s-text-field>
+            <s-button type="submit">{t("Créer et modifier")}</s-button>
           </s-stack>
         </Form>
       </s-section>

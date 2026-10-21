@@ -4,13 +4,15 @@ import { redirect, useActionData, useLoaderData, useNavigation, useSubmit } from
 import prisma from "../db.server";
 import { authenticate } from "../shopify.server";
 import { LabelEditor } from "../components/LabelEditor";
-import { SAMPLE } from "../lib/labels/editorOps";
+import { sampleFor } from "../lib/labels/editorOps";
 import { renderLabels } from "../lib/labels/pdf.server";
 import { resolveTemplate } from "../lib/labels/templates.server";
 import type { LabelTemplateLayout } from "../lib/labels/template";
 import { LayoutError, validateLayout } from "../lib/labels/validateLayout";
 import { pdfUrl } from "../lib/print/client";
 import { getSettings } from "../lib/settings.server";
+import { pickLang } from "../lib/i18n";
+import { useLang, useT } from "../lib/i18n/react";
 
 export const loader = async ({ request, params }: LoaderFunctionArgs) => {
   const { session } = await authenticate.admin(request);
@@ -18,6 +20,7 @@ export const loader = async ({ request, params }: LoaderFunctionArgs) => {
   return {
     id: template.id,
     name: template.name,
+    builtin: template.builtin,
     widthMm: template.format.widthMm,
     heightMm: template.format.heightMm,
     layout: template.layout,
@@ -52,11 +55,14 @@ export const action = async ({ request, params }: ActionFunctionArgs) => {
   }
 
   if (intent === "preview") {
+    // Aperçu avec un produit d'exemple dans la langue de l'écran
+    const lang = pickLang(String(form.get("lang") ?? "")) ?? "fr";
+    const sample = sampleFor(lang);
     const { pdf, overflows, barcodeTooWide } = await renderLabels({
       format: template.format,
       layout,
-      items: [{ ...SAMPLE, title: SAMPLE.title!, price: "29.90", compareAtPrice: "39.90", barcode: "2000000001234", productUrl: "https://exemple.com/products/exemple" }],
-      price: { currency: "EUR", locale: "fr-FR" },
+      items: [{ ...sample, title: sample.title!, price: "29.90", compareAtPrice: "39.90", barcode: "2000000001234", productUrl: "https://exemple.com/products/exemple" }],
+      price: lang === "fr" ? { currency: "EUR", locale: "fr-FR" } : { currency: "USD", locale: "en-US" },
       // Sur planche, l'aperçu montre la page entière
     });
     const warnings = [
@@ -75,6 +81,8 @@ export const action = async ({ request, params }: ActionFunctionArgs) => {
 };
 
 export default function TemplateEditor() {
+  const t = useT();
+  const lang = useLang();
   const data = useLoaderData<typeof loader>();
   const result = useActionData<typeof action>();
   const busy = useNavigation().state !== "idle";
@@ -85,7 +93,7 @@ export default function TemplateEditor() {
   const [confirmDelete, setConfirmDelete] = useState(false);
   const submit = useSubmit();
   const send = (intent: "save" | "preview" | "delete") =>
-    submit({ intent, name, layout: JSON.stringify(layout), collectionIds: collections.join(",") }, { method: "post" });
+    submit({ intent, lang, name, layout: JSON.stringify(layout), collectionIds: collections.join(",") }, { method: "post" });
 
   async function pickCollections() {
     const selection = await shopify.resourcePicker({
@@ -98,45 +106,46 @@ export default function TemplateEditor() {
   }
 
   return (
-    <s-page heading={data.name}>
-      <s-link slot="breadcrumb-actions" href="/app/templates">Modèles</s-link>
-      {result && "error" in result && <s-banner tone="critical">{result.error}</s-banner>}
-      {result && "message" in result && <s-banner tone="success">{result.message}</s-banner>}
-      {result && "warnings" in result && result.warnings?.map((w) => <s-banner key={w} tone="warning">{w}</s-banner>)}
+    <s-page heading={data.builtin ? t(data.name) : data.name}>
+      <s-link slot="breadcrumb-actions" href="/app/templates">{t("Modèles")}</s-link>
+      {result && "error" in result && <s-banner tone="critical">{t(result.error)}</s-banner>}
+      {result && "message" in result && <s-banner tone="success">{t(result.message)}</s-banner>}
+      {result && "warnings" in result && result.warnings?.map((w) => <s-banner key={w} tone="warning">{t(w)}</s-banner>)}
 
       <>
-        <s-section heading={`Étiquette ${data.widthMm.toFixed(1)} × ${data.heightMm.toFixed(1)} mm`}>
-          <s-text-field label="Nom" value={name} onChange={(e) => setName(e.currentTarget.value)}></s-text-field>
+        <s-section heading={t("Étiquette {w} × {h} mm", { w: data.widthMm.toFixed(1), h: data.heightMm.toFixed(1) })}>
+          <s-text-field label={t("Nom")} value={name} onChange={(e) => setName(e.currentTarget.value)}></s-text-field>
           <LabelEditor bounds={{ widthMm: data.widthMm, heightMm: data.heightMm }} layout={layout} onChange={setLayout} />
         </s-section>
 
-        <s-section heading="Collections">
+        <s-section heading={t("Collections")}>
           <s-paragraph>
-            Les produits de ces collections sortent automatiquement sur ce modèle
-            {collections.length ? ` (${collections.length} collections)` : ""}.
+            {collections.length
+              ? t("Les produits de ces collections sortent automatiquement sur ce modèle ({n} collections).", { n: collections.length })
+              : t("Les produits de ces collections sortent automatiquement sur ce modèle.")}
           </s-paragraph>
-          <s-button onClick={pickCollections}>Choisir les collections</s-button>
+          <s-button onClick={pickCollections}>{t("Choisir les collections")}</s-button>
         </s-section>
 
         <s-section>
           <s-stack direction="inline" gap="base">
-            <s-button variant="primary" disabled={busy} onClick={() => send("save")}>Enregistrer</s-button>
-            <s-button disabled={busy} onClick={() => send("preview")}>Aperçu PDF</s-button>
-            <s-button tone="critical" disabled={busy || confirmDelete} onClick={() => setConfirmDelete(true)}>Supprimer</s-button>
+            <s-button variant="primary" disabled={busy} onClick={() => send("save")}>{t("Enregistrer")}</s-button>
+            <s-button disabled={busy} onClick={() => send("preview")}>{t("Aperçu PDF")}</s-button>
+            <s-button tone="critical" disabled={busy || confirmDelete} onClick={() => setConfirmDelete(true)}>{t("Supprimer")}</s-button>
           </s-stack>
           {confirmDelete && (
-            <s-banner tone="critical" heading={`Supprimer « ${data.name} » ?`}>
+            <s-banner tone="critical" heading={t("Supprimer « {name} » ?", { name: data.name })}>
               <s-paragraph>
-                Le modèle et ses règles de collection seront effacés. Les réimpressions qui l'utilisaient ne fonctionneront plus.
+                {t("Le modèle et ses règles de collection seront effacés. Les réimpressions qui l'utilisaient ne fonctionneront plus.")}
               </s-paragraph>
               <s-stack direction="inline" gap="base">
-                <s-button tone="critical" variant="primary" disabled={busy} onClick={() => send("delete")}>Supprimer définitivement</s-button>
-                <s-button disabled={busy} onClick={() => setConfirmDelete(false)}>Annuler</s-button>
+                <s-button tone="critical" variant="primary" disabled={busy} onClick={() => send("delete")}>{t("Supprimer définitivement")}</s-button>
+                <s-button disabled={busy} onClick={() => setConfirmDelete(false)}>{t("Annuler")}</s-button>
               </s-stack>
             </s-banner>
           )}
           {result && "pdfBase64" in result && result.pdfBase64 && (
-            <iframe title="Aperçu" src={pdfUrl(result.pdfBase64)} style={{ width: "100%", height: 320, border: "1px solid #ddd" }} />
+            <iframe title={t("Aperçu")} src={pdfUrl(result.pdfBase64)} style={{ width: "100%", height: 320, border: "1px solid #ddd" }} />
           )}
         </s-section>
       </>

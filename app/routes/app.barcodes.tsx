@@ -9,6 +9,8 @@ import { prismaBarcodeStore } from "../lib/barcode/store.server";
 import { fetchCatalogBarcodes } from "../lib/shopify/catalog";
 import { gqlFromAdmin } from "../lib/shopify/graphql";
 import { getSettings, symbologyOf } from "../lib/settings.server";
+import { pickLang, translate, dateLocale, type Vars } from "../lib/i18n";
+import { useLang, useT } from "../lib/i18n/react";
 
 export const loader = async ({ request }: LoaderFunctionArgs) => {
   const { admin, session } = await authenticate.admin(request);
@@ -43,25 +45,33 @@ export const action = async ({ request }: ActionFunctionArgs) => {
   const intent = form.get("intent");
   const settings = await getSettings(session.shop);
   const symbology = symbologyOf(settings.barcodeSymbology);
+  // Messages composés ici : traduits dans la langue de l'écran qui a envoyé le formulaire
+  const lang = pickLang(String(form.get("lang") ?? "")) ?? "fr";
+  const tr = (text: string, vars?: Vars) => translate(lang, text, vars);
+  const lineError = (e: { line: number; message: string }) => tr("ligne {line} : {message}", { line: e.line, message: tr(e.message) });
 
   if (intent === "rollback") {
     const result = await rollbackBatch(gql, prismaBarcodeStore, session.shop, String(form.get("batchId")));
-    return { message: `${result.restored} codes restaurés${result.skipped ? `, ${result.skipped} laissés car modifiés depuis` : ""}.` };
+    return {
+      message: result.skipped
+        ? tr("{restored} codes restaurés, {skipped} laissés car modifiés depuis.", { restored: result.restored, skipped: result.skipped })
+        : tr("{restored} codes restaurés.", { restored: result.restored }),
+    };
   }
 
   if (intent === "gs1-import") {
     const { rows, errors } = parseGs1Input(String(form.get("gtins") ?? ""));
-    if (!rows.length) return { error: errors.map((e) => `ligne ${e.line} : ${e.message}`).slice(0, 10).join(" ; ") || "Aucun GTIN valide" };
+    if (!rows.length) return { error: errors.map(lineError).slice(0, 10).join(" ; ") || tr("Aucun GTIN valide") };
     try {
       const result = await importGs1(gql, prismaBarcodeStore, session.shop, rows, String(form.get("confirmation") ?? "") || undefined);
       const issues = [...errors, ...result.problems].sort((a, b) => a.line - b.line);
-      const parts = [`${result.assignments.length} GTIN attribués.`];
-      if (result.unused.length) parts.push(`${result.unused.length} GTIN libres non utilisés (plus de variante sans code) : gardez-les pour vos prochains produits.`);
-      if (issues.length) parts.push(`${issues.length} ligne(s) refusée(s) : ${issues.slice(0, 10).map((e) => `ligne ${e.line} : ${e.message}`).join(" ; ")}${issues.length > 10 ? " ; …" : ""}`);
+      const parts = [tr("{n} GTIN attribués.", { n: result.assignments.length })];
+      if (result.unused.length) parts.push(tr("{n} GTIN libres non utilisés (plus de variante sans code) : gardez-les pour vos prochains produits.", { n: result.unused.length }));
+      if (issues.length) parts.push(`${tr("{n} ligne(s) refusée(s) :", { n: issues.length })} ${issues.slice(0, 10).map(lineError).join(" ; ")}${issues.length > 10 ? " ; …" : ""}`);
       return issues.length ? { warning: parts.join(" ") } : { message: parts.join(" ") };
     } catch (error) {
       if (error instanceof ConfirmationRequiredError) {
-        return { error: `${error.message} : certaines variantes ont déjà un code, il sera remplacé.`, needsConfirmation: true };
+        return { error: tr("{error} : certaines variantes ont déjà un code, il sera remplacé.", { error: tr(error.message) }), needsConfirmation: true };
       }
       throw error;
     }
@@ -71,7 +81,7 @@ export const action = async ({ request }: ActionFunctionArgs) => {
   if (intent === "generate-missing") {
     const ids = catalog.filter((v) => !v.barcode?.trim()).map((v) => v.variantId);
     const result = await generateBarcodes(gql, prismaBarcodeStore, session.shop, ids, symbology);
-    return { message: `${result.written.length} codes créés. Aucun code existant n'a été modifié.` };
+    return { message: tr("{n} codes créés. Aucun code existant n'a été modifié.", { n: result.written.length }) };
   }
 
   if (intent === "replace-all") {
@@ -80,13 +90,13 @@ export const action = async ({ request }: ActionFunctionArgs) => {
         gql, prismaBarcodeStore, session.shop, catalog.map((v) => v.variantId), symbology,
         { kind: "replace", confirmation: String(form.get("confirmation") ?? "") },
       );
-      return { message: `${result.written.length} codes remplacés. Ce lot peut être annulé ci-dessous.` };
+      return { message: tr("{n} codes remplacés. Ce lot peut être annulé ci-dessous.", { n: result.written.length }) };
     } catch (error) {
-      if (error instanceof ConfirmationRequiredError) return { error: error.message };
+      if (error instanceof ConfirmationRequiredError) return { error: tr(error.message) };
       throw error;
     }
   }
-  return { error: "Action inconnue" };
+  return { error: tr("Action inconnue") };
 };
 
 const REASONS: Record<string, string> = {
@@ -97,52 +107,55 @@ const REASONS: Record<string, string> = {
 };
 
 export default function Barcodes() {
+  const t = useT();
+  const lang = useLang();
   const data = useLoaderData<typeof loader>();
   const result = useActionData<typeof action>();
   const busy = useNavigation().state !== "idle";
 
   return (
-    <s-page heading="Codes-barres">
-      {result && "message" in result && <s-banner tone="success">{result.message}</s-banner>}
-      {result && "error" in result && <s-banner tone="critical">{result.error}</s-banner>}
-      {result && "warning" in result && <s-banner tone="warning">{result.warning}</s-banner>}
+    <s-page heading={t("Codes-barres")}>
+      {result && "message" in result && <s-banner tone="success">{t(result.message)}</s-banner>}
+      {result && "error" in result && <s-banner tone="critical">{t(result.error)}</s-banner>}
+      {result && "warning" in result && <s-banner tone="warning">{t(result.warning)}</s-banner>}
 
-      <s-section heading="Couverture du catalogue">
+      <s-section heading={t("Couverture du catalogue")}>
         <s-paragraph>
-          {data.withCode} variantes sur {data.total} ont un code-barres. {data.missing} n'en ont pas.
+          {t("{withCode} variantes sur {total} ont un code-barres. {missing} n'en ont pas.", { withCode: data.withCode, total: data.total, missing: data.missing })}
         </s-paragraph>
         <Form method="post">
           <input type="hidden" name="intent" value="generate-missing" />
+          <input type="hidden" name="lang" value={lang} />
           <s-button type="submit" variant="primary" disabled={busy || data.missing === 0}>
-            Créer les {data.missing} codes manquants
+            {t("Créer les {n} codes manquants", { n: data.missing })}
           </s-button>
         </Form>
       </s-section>
 
-      <s-section heading="Doublons">
+      <s-section heading={t("Doublons")}>
         {data.duplicates.length === 0 ? (
-          <s-paragraph>Aucun doublon dans le catalogue.</s-paragraph>
+          <s-paragraph>{t("Aucun doublon dans le catalogue.")}</s-paragraph>
         ) : (
           <s-unordered-list>
             {data.duplicates.map((d) => (
               <s-list-item key={d.code}>
-                {d.code} : {d.variantIds.length} variantes
+                {t("{code} : {n} variantes", { code: d.code, n: d.variantIds.length })}
               </s-list-item>
             ))}
           </s-unordered-list>
         )}
       </s-section>
 
-      <s-section heading="Importer mes GTIN GS1">
+      <s-section heading={t("Importer mes GTIN GS1")}>
         <s-paragraph>
-          Pour vendre sur Google Shopping ou chez un revendeur, il faut des GTIN achetés auprès de GS1 : l'app n'en crée
-          jamais. Collez-les ou importez le fichier : une colonne « GTIN », et si vous voulez choisir la variante, une
-          colonne « SKU ». Sans SKU, chaque GTIN va à une variante qui n'a pas encore de code. Chaque clé de contrôle est
-          vérifiée.
+          {t(
+            "Pour vendre sur Google Shopping ou chez un revendeur, il faut des GTIN achetés auprès de GS1 : l'app n'en crée jamais. Collez-les ou importez le fichier : une colonne « GTIN », et si vous voulez choisir la variante, une colonne « SKU ». Sans SKU, chaque GTIN va à une variante qui n'a pas encore de code. Chaque clé de contrôle est vérifiée.",
+          )}
         </s-paragraph>
         <Form method="post">
           <input type="hidden" name="intent" value="gs1-import" />
-          <s-text-area name="gtins" label="GTIN (un par ligne, ou « SKU;GTIN »)" rows={6}></s-text-area>
+          <input type="hidden" name="lang" value={lang} />
+          <s-text-area name="gtins" label={t("GTIN (un par ligne, ou « SKU;GTIN »)")} rows={6}></s-text-area>
           <input
             type="file"
             accept=".csv,.txt,text/csv"
@@ -153,40 +166,44 @@ export default function Barcodes() {
             }}
           />
           {result && "needsConfirmation" in result && (
-            <s-text-field name="confirmation" label="Confirmation du remplacement" autocomplete="off"></s-text-field>
+            <s-text-field name="confirmation" label={t("Confirmation du remplacement")} autocomplete="off"></s-text-field>
           )}
-          <s-button type="submit" disabled={busy}>Importer et attribuer</s-button>
+          <s-button type="submit" disabled={busy}>{t("Importer et attribuer")}</s-button>
         </Form>
       </s-section>
 
-      <s-section heading="Remplacer tous les codes">
+      <s-section heading={t("Remplacer tous les codes")}>
         <s-paragraph>
-          Remplace aussi les codes existants, y compris ceux des fabricants. Les étiquettes déjà collées ne
-          scanneront plus. Pour confirmer, tapez « {replaceConfirmationPhrase(data.withCode)} ».
+          {t(
+            "Remplace aussi les codes existants, y compris ceux des fabricants. Les étiquettes déjà collées ne scanneront plus. Pour confirmer, tapez « {phrase} ».",
+            { phrase: t(replaceConfirmationPhrase(data.withCode)) },
+          )}
         </s-paragraph>
         <Form method="post">
           <input type="hidden" name="intent" value="replace-all" />
-          <s-text-field name="confirmation" label="Confirmation" autocomplete="off"></s-text-field>
+          <input type="hidden" name="lang" value={lang} />
+          <s-text-field name="confirmation" label={t("Confirmation")} autocomplete="off"></s-text-field>
           <s-button type="submit" tone="critical" disabled={busy}>
-            Remplacer tous les codes
+            {t("Remplacer tous les codes")}
           </s-button>
         </Form>
       </s-section>
 
-      <s-section heading="Journal des changements">
+      <s-section heading={t("Journal des changements")}>
         {data.batches.length === 0 ? (
-          <s-paragraph>Aucun changement pour l'instant.</s-paragraph>
+          <s-paragraph>{t("Aucun changement pour l'instant.")}</s-paragraph>
         ) : (
           <s-unordered-list>
             {data.batches.map((b) => (
               <s-list-item key={b.batchId}>
-                {new Date(b.date).toLocaleString("fr-FR")} · {REASONS[b.reason] ?? b.reason} · {b.count} codes
+                {new Date(b.date).toLocaleString(dateLocale(lang))} · {t(REASONS[b.reason] ?? b.reason)} · {t("{n} codes", { n: b.count })}
                 {b.reason !== "rollback" && (
                   <Form method="post" style={{ display: "inline" }}>
                     <input type="hidden" name="intent" value="rollback" />
+                    <input type="hidden" name="lang" value={lang} />
                     <input type="hidden" name="batchId" value={b.batchId} />
                     <s-button type="submit" variant="tertiary" disabled={busy}>
-                      Annuler ce lot
+                      {t("Annuler ce lot")}
                     </s-button>
                   </Form>
                 )}

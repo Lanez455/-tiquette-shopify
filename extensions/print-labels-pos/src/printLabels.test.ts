@@ -12,4 +12,9 @@ describe("adresse d'impression de la caisse", () => {
       { variantId: "gid://shopify/ProductVariant/7", quantity: 1000 },
     ]);
   });
+
+  it("transmet la langue de la caisse, pour des messages d'erreur dans la même langue", () => {
+    const path = labelsPath([{ variantId: 1, quantity: 1 }], "en");
+    expect(new URL(path, "https://app.example").searchParams.get("locale")).toBe("en");
+  });
 });

@@ -1,6 +1,7 @@
 import "@shopify/ui-extensions/preact";
 import { render } from "preact";
 import { useEffect, useState } from "preact/hooks";
+import { t } from "./printLabels";
 
 export default async () => {
   render(<Tile />, document.body);
@@ -12,8 +13,8 @@ function Tile() {
   useEffect(() => shopify.cart.current.subscribe(() => setItems(count())), []);
   return (
     <s-tile
-      heading="Étiquettes"
-      subheading={items ? `${items} article(s) du panier` : "Ajoutez des articles au panier"}
+      heading={t("tile")}
+      subheading={items ? t("cartItems", { n: items }) : t("emptyCart")}
       disabled={!items}
       onClick={() => shopify.action.presentModal()}
     />

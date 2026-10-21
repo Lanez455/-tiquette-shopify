@@ -14,6 +14,10 @@ npx shopify app config link   # relie le projet à ton app Shopify (une seule fo
 npm run dev           # lance l'app sur la boutique de développement
 ```
 
+## Langues
+
+L'app s'affiche en français si l'admin Shopify du marchand est en français, en anglais sinon (bouton Imprimer de l'admin et caisse compris). Les textes français servent de clés ; leur traduction est dans `app/lib/i18n/en.ts`, et un test signale tout texte affiché qui n'y figure pas.
+
 ## Mise en ligne
 
 Le guide pas à pas est dans [docs/DEPLOIEMENT.md](docs/DEPLOIEMENT.md) (Fly.io, base SQLite sur un volume).

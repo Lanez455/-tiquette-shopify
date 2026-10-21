@@ -106,4 +106,11 @@ describe("F11 : codes existants protégés", () => {
     // Le nouveau code ne reprend jamais un ancien code du catalogue
     expect(plan.assignments.map((a) => a.newValue)).not.toContain("4006381333931");
   });
+
+  it("accepte la phrase de l'écran anglais, et rien d'approchant", () => {
+    expect(planBarcodes(catalog, catalog, "ean13", 1, { kind: "replace", confirmation: "REPLACE 1" }).assignments).toHaveLength(catalog.length);
+    for (const confirmation of ["replace 1", "REPLACE 2", "REPLACE", "REMPLACER 2"]) {
+      expect(() => planBarcodes(catalog, catalog, "ean13", 1, { kind: "replace", confirmation })).toThrow(ConfirmationRequiredError);
+    }
+  });
 });

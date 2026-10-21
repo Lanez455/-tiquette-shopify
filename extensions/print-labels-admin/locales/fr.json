@@ -1,0 +1,13 @@
+{
+  "name": "Étiquettes code-barres",
+  "lang": "fr",
+  "unreachable": "Impossible de joindre l'app d'étiquettes",
+  "prepareFailed": "Impossible de préparer les étiquettes",
+  "error": "Erreur",
+  "template": "Modèle d'étiquette",
+  "perVariant": "Étiquettes par variante",
+  "asStock": "Autant que le stock",
+  "selected": "{{n}} produits sélectionnés.",
+  "allVariants": "Toutes les variantes du produit.",
+  "openApp": "Pour choisir variante par variante, ouvrez l'app."
+}

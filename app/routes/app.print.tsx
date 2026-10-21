@@ -14,6 +14,7 @@ import { parseLabelCsv } from "../lib/import/csv";
 import { matchCsvRows } from "../lib/import/match";
 import { parseLinesParam } from "../lib/print/links.server";
 import { currentPlan, PlanLimitError, requireFeature } from "../lib/billing/plans";
+import { useT } from "../lib/i18n/react";
 
 interface Line {
   variantId: string;
@@ -63,7 +64,7 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
       : ids.length
         ? await linesFor(gqlFromAdmin(admin), ids.slice(0, 250), asSetting(settings.defaultQuantity))
         : [],
-    templates: templates.map((t) => ({ id: t.id, name: t.name, sheet: t.format.kind === "sheet", hasRules: t.collectionIds.length > 0 })),
+    templates: templates.map((t) => ({ id: t.id, name: t.name, builtin: t.builtin, sheet: t.format.kind === "sheet", hasRules: t.collectionIds.length > 0 })),
     defaultTemplateId: settings.defaultTemplateId ?? "builtin:dymo-30336",
     source: url.searchParams.get("source") ?? "product",
     printMethod: settings.printMethod === "zebra" || settings.printMethod === "dymo" ? settings.printMethod : "pdf",
@@ -104,7 +105,9 @@ export const action = async ({ request }: ActionFunctionArgs): Promise<AddResult
     return {
       lines: await linesFor(gql, doc.lines.map((l) => l.variantId), "zero", quantities),
       source: kind,
-      notice: `${doc.name} : ${doc.lines.length} articles ajoutés${doc.skipped ? `, ${doc.skipped} article(s) supprimé(s) ignoré(s)` : ""}.`,
+      notice: doc.skipped
+        ? `${doc.name} : ${doc.lines.length} articles ajoutés, ${doc.skipped} article(s) supprimé(s) ignoré(s).`
+        : `${doc.name} : ${doc.lines.length} articles ajoutés.`,
     };
   }
 
@@ -137,6 +140,7 @@ export const action = async ({ request }: ActionFunctionArgs): Promise<AddResult
 };
 
 export default function Print() {
+  const t = useT();
   const data = useLoaderData<typeof loader>();
   const fetcher = useFetcher<typeof action>();
   const [params, setParams] = useSearchParams();
@@ -160,20 +164,23 @@ export default function Print() {
       return [...kept, ...result.lines.filter((l) => !known.has(l.variantId))];
     });
     if (result.source) setSource(result.source);
-    if (result.truncated) setMessage({ tone: "warning", text: "Seules les 2 000 premières variantes ont été ajoutées." });
+    if (result.truncated) setMessage({ tone: "warning", text: t("Seules les 2 000 premières variantes ont été ajoutées.") });
     else if (result.notice) {
       const problems = result.problems ?? [];
-      const detail = problems.slice(0, 8).map((p) => `ligne ${p.line}${p.key ? ` (${p.key})` : ""} : ${p.message}`).join(" ; ");
+      const detail = problems
+        .slice(0, 8)
+        .map((p) => t("ligne {line}{key} : {message}", { line: p.line, key: p.key ? ` (${p.key})` : "", message: t(p.message) }))
+        .join(" ; ");
       setMessage({
         tone: problems.length ? "warning" : "success",
-        text: `${result.notice}${problems.length ? ` ${problems.length} ligne(s) à revoir : ${detail}${problems.length > 8 ? " ; …" : ""}` : ""}`,
+        text: `${t(result.notice)}${problems.length ? ` ${t("{n} ligne(s) à revoir :", { n: problems.length })} ${detail}${problems.length > 8 ? " ; …" : ""}` : ""}`,
       });
     }
-  }, [fetcher.data]);
+  }, [fetcher.data, t]);
 
   async function importCsv(file: File | undefined) {
     if (!file) return;
-    if (file.size > 2_000_000) return setMessage({ tone: "critical", text: "Fichier trop lourd (2 Mo au maximum)." });
+    if (file.size > 2_000_000) return setMessage({ tone: "critical", text: t("Fichier trop lourd (2 Mo au maximum).") });
     fetcher.submit({ intent: "csv", csv: await file.text() }, { method: "post" });
   }
 
@@ -206,14 +213,14 @@ export default function Print() {
     setBusy(true);
     const result = await requestPrint(body(true));
     setBusy(false);
-    if (result.error || !result.groups?.[0]) return setMessage({ tone: "critical", text: result.error ?? "Aperçu impossible" });
+    if (result.error || !result.groups?.[0]) return setMessage({ tone: "critical", text: t(result.error ?? "Aperçu impossible") });
     setPreview(pdfUrl(result.groups[0].pdfBase64));
   }
 
   const done = (count: number, warnings: string[], note = "") => {
     setMessage({
       tone: warnings.length || note ? "warning" : "success",
-      text: `${count} étiquettes envoyées à l'impression.${note ? ` ${note}` : ""}${warnings.length ? ` ${warnings.join(". ")}.` : ""}`,
+      text: `${t("{n} étiquettes envoyées à l'impression.", { n: count })}${note ? ` ${note}` : ""}${warnings.length ? ` ${warnings.map((w) => t(w)).join(". ")}.` : ""}`,
     });
     // La file se vide après chaque impression (F16) ; elle reste dans l'historique
     setLines([]);
@@ -238,11 +245,11 @@ export default function Print() {
           setBusy(false);
           return done(direct.direct.reduce((s, g) => s + g.labelCount, 0), direct.direct.flatMap((g) => g.warnings));
         } catch (error) {
-          note = `${printer} injoignable (${error instanceof Error ? error.message : "erreur"}) : impression en PDF.`;
+          note = t("{printer} injoignable ({error}) : impression en PDF.", { printer, error: t(error instanceof Error ? error.message : "erreur") });
           fallbackJobId = direct.jobId;
         }
       } else {
-        note = `${direct.error ?? `Impression ${printer} impossible`} Impression en PDF.`;
+        note = `${direct.error ? t(direct.error) : t("Impression {printer} impossible", { printer })} ${t("Impression en PDF.")}`;
       }
     }
 
@@ -250,77 +257,77 @@ export default function Print() {
       fallbackJobId ? { reprintJobId: fallbackJobId, fallback: true, start: body(false).start } : body(false),
     );
     setBusy(false);
-    if (result.error || !result.groups) return setMessage({ tone: "critical", text: result.error ?? "Impression impossible" });
+    if (result.error || !result.groups) return setMessage({ tone: "critical", text: t(result.error ?? "Impression impossible") });
     for (const group of result.groups) await printPdfUrl(pdfUrl(group.pdfBase64)).catch(() => undefined);
     done(result.groups.reduce((s, g) => s + g.labelCount, 0), result.groups.flatMap((g) => g.warnings), note);
   }
 
   return (
-    <s-page heading="Impression">
+    <s-page heading={t("Impression")}>
       {message && <s-banner tone={message.tone}>{message.text}</s-banner>}
 
-      <s-section heading="Articles">
+      <s-section heading={t("Articles")}>
         <s-stack direction="inline" gap="base">
-          <s-button onClick={pick}>Ajouter des produits</s-button>
-          <s-button variant="tertiary" onClick={() => setAll("zero")}>Tout à 0</s-button>
-          <s-button variant="tertiary" onClick={() => setAll("one")}>Tout à 1</s-button>
-          <s-button variant="tertiary" onClick={() => setAll("stock")}>Tout au stock</s-button>
-          {lines.length > 0 && <s-button variant="tertiary" tone="critical" onClick={() => setLines([])}>Vider</s-button>}
+          <s-button onClick={pick}>{t("Ajouter des produits")}</s-button>
+          <s-button variant="tertiary" onClick={() => setAll("zero")}>{t("Tout à 0")}</s-button>
+          <s-button variant="tertiary" onClick={() => setAll("one")}>{t("Tout à 1")}</s-button>
+          <s-button variant="tertiary" onClick={() => setAll("stock")}>{t("Tout au stock")}</s-button>
+          {lines.length > 0 && <s-button variant="tertiary" tone="critical" onClick={() => setLines([])}>{t("Vider")}</s-button>}
         </s-stack>
 
         <fetcher.Form method="post">
           <input type="hidden" name="intent" value="filter" />
           <s-stack direction="inline" gap="base">
-            <s-text-field name="vendor" label="Fournisseur"></s-text-field>
-            <s-text-field name="productType" label="Type"></s-text-field>
-            <s-date-field name="createdSince" label="Ajoutés depuis"></s-date-field>
-            <s-button type="submit">Tout sélectionner</s-button>
+            <s-text-field name="vendor" label={t("Fournisseur")}></s-text-field>
+            <s-text-field name="productType" label={t("Type")}></s-text-field>
+            <s-date-field name="createdSince" label={t("Ajoutés depuis")}></s-date-field>
+            <s-button type="submit">{t("Tout sélectionner")}</s-button>
           </s-stack>
         </fetcher.Form>
 
         <s-stack direction="inline" gap="base">
           {data.docs.length > 0 && (
             <>
-              <s-select label="Bon de commande ou transfert" value={docId} onChange={(e) => setDocId(e.currentTarget.value)}>
-                <s-option value="">Choisir…</s-option>
+              <s-select label={t("Bon de commande ou transfert")} value={docId} onChange={(e) => setDocId(e.currentTarget.value)}>
+                <s-option value="">{t("Choisir…")}</s-option>
                 {data.docs.map((d) => (
                   <s-option key={d.id} value={d.id}>
-                    {`${d.kind === "purchase_order" ? "Bon de commande" : "Transfert"} ${d.name}${d.dateCreated ? ` · ${d.dateCreated.slice(0, 10)}` : ""}`}
+                    {`${t(d.kind === "purchase_order" ? "Bon de commande" : "Transfert")} ${d.name}${d.dateCreated ? ` · ${d.dateCreated.slice(0, 10)}` : ""}`}
                   </s-option>
                 ))}
               </s-select>
               <s-button disabled={!docId} onClick={() => fetcher.submit({ intent: "document", docId }, { method: "post" })}>
-                Ajouter ses articles
+                {t("Ajouter ses articles")}
               </s-button>
             </>
           )}
           <label>
-            Importer un CSV (code-barres ou SKU, quantité){" "}
+            {t("Importer un CSV (code-barres ou SKU, quantité)")}{" "}
             <input type="file" accept=".csv,.txt,text/csv" onChange={(e) => importCsv(e.currentTarget.files?.[0])} />
           </label>
         </s-stack>
 
         {lines.length === 0 ? (
-          <s-paragraph>Aucun article. Ajoutez des produits, un bon de commande, un transfert ou un fichier CSV.</s-paragraph>
+          <s-paragraph>{t("Aucun article. Ajoutez des produits, un bon de commande, un transfert ou un fichier CSV.")}</s-paragraph>
         ) : (
           <s-table>
             <s-table-header-row>
-              <s-table-header>Article</s-table-header>
+              <s-table-header>{t("Article")}</s-table-header>
               <s-table-header>SKU</s-table-header>
-              <s-table-header>Code-barres</s-table-header>
+              <s-table-header>{t("Code-barres")}</s-table-header>
               <s-table-header>Stock</s-table-header>
-              <s-table-header>Étiquettes</s-table-header>
+              <s-table-header>{t("Étiquettes")}</s-table-header>
             </s-table-header-row>
             <s-table-body>
               {lines.map((l) => (
                 <s-table-row key={l.variantId}>
                   <s-table-cell>{l.title}{l.variantTitle ? ` · ${l.variantTitle}` : ""}</s-table-cell>
                   <s-table-cell>{l.sku}</s-table-cell>
-                  <s-table-cell>{l.barcode || "à créer"}</s-table-cell>
+                  <s-table-cell>{l.barcode || t("à créer")}</s-table-cell>
                   <s-table-cell>{l.inventory ?? ""}</s-table-cell>
                   <s-table-cell>
                     <s-number-field
-                      label="Quantité"
+                      label={t("Quantité")}
                       labelAccessibilityVisibility="exclusive"
                       min={0}
                       max={MAX_PER_LINE}
@@ -335,27 +342,27 @@ export default function Print() {
         )}
       </s-section>
 
-      <s-section heading="Modèle">
-        <s-select label="Modèle d'étiquette" value={templateId} onChange={(e) => setTemplateId(e.currentTarget.value)}>
-          {data.templates.some((t) => t.hasRules) && <s-option value={AUTO_TEMPLATE}>Automatique selon la collection</s-option>}
-          {data.templates.map((t) => (
-            <s-option key={t.id} value={t.id}>{t.name}</s-option>
+      <s-section heading={t("Modèle")}>
+        <s-select label={t("Modèle d'étiquette")} value={templateId} onChange={(e) => setTemplateId(e.currentTarget.value)}>
+          {data.templates.some((tpl) => tpl.hasRules) && <s-option value={AUTO_TEMPLATE}>{t("Automatique selon la collection")}</s-option>}
+          {data.templates.map((tpl) => (
+            <s-option key={tpl.id} value={tpl.id}>{tpl.builtin ? t(tpl.name) : tpl.name}</s-option>
           ))}
         </s-select>
         {isSheet && (
           <s-stack direction="inline" gap="base">
-            <s-number-field label="Ligne de départ" min={1} value={String(start.row)} onChange={(e) => setStart((s) => ({ ...s, row: Number(e.currentTarget.value) || 1 }))}></s-number-field>
-            <s-number-field label="Colonne de départ" min={1} value={String(start.column)} onChange={(e) => setStart((s) => ({ ...s, column: Number(e.currentTarget.value) || 1 }))}></s-number-field>
+            <s-number-field label={t("Ligne de départ")} min={1} value={String(start.row)} onChange={(e) => setStart((s) => ({ ...s, row: Number(e.currentTarget.value) || 1 }))}></s-number-field>
+            <s-number-field label={t("Colonne de départ")} min={1} value={String(start.column)} onChange={(e) => setStart((s) => ({ ...s, column: Number(e.currentTarget.value) || 1 }))}></s-number-field>
           </s-stack>
         )}
       </s-section>
 
-      <s-section heading={`${total} étiquettes`}>
+      <s-section heading={t("{n} étiquettes", { n: total })}>
         <s-stack direction="inline" gap="base">
-          <s-button variant="primary" disabled={busy || total === 0} onClick={print}>Imprimer</s-button>
-          <s-button disabled={busy || total === 0} onClick={showPreview}>Aperçu</s-button>
+          <s-button variant="primary" disabled={busy || total === 0} onClick={print}>{t("Imprimer")}</s-button>
+          <s-button disabled={busy || total === 0} onClick={showPreview}>{t("Aperçu")}</s-button>
         </s-stack>
-        {preview && <iframe title="Aperçu" src={preview} style={{ width: "100%", height: 320, border: "1px solid #ddd" }} />}
+        {preview && <iframe title={t("Aperçu")} src={preview} style={{ width: "100%", height: 320, border: "1px solid #ddd" }} />}
       </s-section>
     </s-page>
   );

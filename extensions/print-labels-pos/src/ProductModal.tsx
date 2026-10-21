@@ -1,7 +1,7 @@
 import "@shopify/ui-extensions/preact";
 import { render } from "preact";
 import { useState } from "preact/hooks";
-import { printLabels } from "./printLabels";
+import { printLabels, t } from "./printLabels";
 
 export default async () => {
   render(<ProductModal />, document.body);
@@ -18,17 +18,17 @@ function ProductModal() {
   };
 
   return (
-    <s-page heading="Étiquettes">
+    <s-page heading={t("labels")}>
       <s-stack direction="block" gap="base">
         <s-number-field
-          label="Nombre d'étiquettes"
+          label={t("howMany")}
           value={String(quantity)}
           min={1}
           max={1000}
           onChange={(e) => setQuantity(Math.max(1, Math.min(1000, Math.floor(Number(e.currentTarget.value) || 1))))}
         />
         <s-button variant="primary" disabled={busy} onClick={print}>
-          Imprimer
+          {t("print")}
         </s-button>
       </s-stack>
     </s-page>

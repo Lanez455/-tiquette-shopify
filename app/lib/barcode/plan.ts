@@ -28,6 +28,11 @@ export function replaceConfirmationPhrase(count: number): string {
   return `REMPLACER ${count}`;
 }
 
+// L'écran anglais demande « REPLACE n » : les deux phrases exactes confirment
+export function isReplaceConfirmed(confirmation: string | undefined, count: number): boolean {
+  return confirmation === replaceConfirmationPhrase(count) || confirmation === `REPLACE ${count}`;
+}
+
 export class ConfirmationRequiredError extends Error {
   constructor(public readonly expected: string) {
     super(`Confirmation requise : tapez « ${expected} »`);
@@ -50,7 +55,7 @@ export function planBarcodes(
   if (mode.kind === "replace") {
     const replaced = variants.filter(hasBarcode).length;
     const expected = replaceConfirmationPhrase(replaced);
-    if (replaced > 0 && mode.confirmation !== expected) {
+    if (replaced > 0 && !isReplaceConfirmed(mode.confirmation, replaced)) {
       throw new ConfirmationRequiredError(expected);
     }
   }

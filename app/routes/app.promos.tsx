@@ -6,6 +6,7 @@ import { fetchCurrentPrices, findPriceChanges, setCompareAtPrices } from "../lib
 import { formatPrice } from "../lib/labels/price";
 import { fetchShopFormat } from "../lib/shopify/catalog";
 import { gqlFromAdmin } from "../lib/shopify/graphql";
+import { useT } from "../lib/i18n/react";
 
 // Réétiquetage des promotions (F21)
 export const loader = async ({ request }: LoaderFunctionArgs) => {
@@ -49,44 +50,47 @@ export const action = async ({ request }: ActionFunctionArgs) => {
 };
 
 export default function Promos() {
+  const t = useT();
   const data = useLoaderData<typeof loader>();
   const result = useActionData<typeof action>();
   const busy = useNavigation().state !== "idle";
 
   return (
-    <s-page heading="Prix changés">
-      {result && "error" in result && <s-banner tone="critical">{result.error}</s-banner>}
+    <s-page heading={t("Prix changés")}>
+      {result && "error" in result && <s-banner tone="critical">{t(result.error)}</s-banner>}
       <s-section>
         <s-paragraph>
-          Articles dont le prix a changé depuis leur dernière étiquette ({data.tracked} articles suivis). Cochez ceux à
-          réétiqueter : ils passent dans l'écran Impression.
+          {t(
+            "Articles dont le prix a changé depuis leur dernière étiquette ({n} articles suivis). Cochez ceux à réétiqueter : ils passent dans l'écran Impression.",
+            { n: data.tracked },
+          )}
         </s-paragraph>
       </s-section>
-      <s-section heading={`${data.changes.length} étiquette(s) à refaire`}>
+      <s-section heading={t("{n} étiquette(s) à refaire", { n: data.changes.length })}>
         {data.changes.length === 0 ? (
-          <s-paragraph>Aucun prix n'a changé depuis les dernières impressions.</s-paragraph>
+          <s-paragraph>{t("Aucun prix n'a changé depuis les dernières impressions.")}</s-paragraph>
         ) : (
           <Form method="post">
             <s-table>
               <s-table-header-row>
-                <s-table-header>Réétiqueter</s-table-header>
-                <s-table-header>Article</s-table-header>
-                <s-table-header>Prix imprimé</s-table-header>
-                <s-table-header>Prix actuel</s-table-header>
-                <s-table-header>Prix barré</s-table-header>
+                <s-table-header>{t("Réétiqueter")}</s-table-header>
+                <s-table-header>{t("Article")}</s-table-header>
+                <s-table-header>{t("Prix imprimé")}</s-table-header>
+                <s-table-header>{t("Prix actuel")}</s-table-header>
+                <s-table-header>{t("Prix barré")}</s-table-header>
               </s-table-header-row>
               <s-table-body>
                 {data.changes.map((c) => (
                   <s-table-row key={c.variantId}>
                     <s-table-cell>
-                      <s-checkbox name="variantId" value={c.variantId} defaultChecked label="Réétiqueter" labelAccessibilityVisibility="exclusive" />
+                      <s-checkbox name="variantId" value={c.variantId} defaultChecked label={t("Réétiqueter")} labelAccessibilityVisibility="exclusive" />
                     </s-table-cell>
                     <s-table-cell>{c.name}</s-table-cell>
                     <s-table-cell>{c.before}</s-table-cell>
                     <s-table-cell>{c.now}</s-table-cell>
                     <s-table-cell>
                       {c.suggested ? (
-                        <s-checkbox name="strike" value={`${c.variantId}|${c.suggested}`} label={`Barrer ${c.suggestedLabel}`} />
+                        <s-checkbox name="strike" value={`${c.variantId}|${c.suggested}`} label={t("Barrer {price}", { price: c.suggestedLabel })} />
                       ) : (
                         c.compareAt
                       )}
@@ -95,7 +99,7 @@ export default function Promos() {
                 ))}
               </s-table-body>
             </s-table>
-            <s-button type="submit" variant="primary" disabled={busy}>Imprimer les étiquettes cochées</s-button>
+            <s-button type="submit" variant="primary" disabled={busy}>{t("Imprimer les étiquettes cochées")}</s-button>
           </Form>
         )}
       </s-section>

@@ -1,6 +1,7 @@
 # Journal des versions
 
 ## Non publié
+- Version anglaise : l'app, le bouton Imprimer de l'admin et la caisse suivent la langue de l'admin Shopify (français ou anglais). La phrase de confirmation « REPLACE n » est acceptée comme « REMPLACER n ».
 - Mise en ligne : image Docker, configuration Fly.io, contrôle de santé /healthz, politique de confidentialité publique (/confidentialite) et guide pas à pas (docs/DEPLOIEMENT.md).
 - Audit avant mise en production : requêtes sous la limite de coût de Shopify (la lecture des étiquettes était refusée), produits de plus de 250 variantes, relance automatique en cas de débit limité, effacement complet des données au shop/redact, bouton Imprimer qui ne reste plus bloqué, éditeur adapté au téléphone, confirmation avant suppression d'un modèle, lint et essai de bout en bout.
 - Écran d'impression : sélection, filtres, quantité par défaut (F13), case de départ, aperçu, file vidée après impression et historique avec réimpression en 1 clic (F16), modèle automatique par collection (F20).

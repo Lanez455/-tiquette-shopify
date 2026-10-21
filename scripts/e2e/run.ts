@@ -48,7 +48,8 @@ function sessionToken(sub = "42"): string {
   return `${header}.${payload}.${b64url(createHmac("sha256", SECRET).update(`${header}.${payload}`).digest())}`;
 }
 const host = b64url(`admin.shopify.com/store/e2e-test`);
-const embedded = (path: string) => `${APP}${path}${path.includes("?") ? "&" : "?"}embedded=1&shop=${SHOP}&host=${host}&id_token=${sessionToken()}`;
+// Shopify ajoute la langue de l'admin à l'adresse : l'essai se fait en français, sauf mention contraire
+const embedded = (path: string, locale = "fr") => `${APP}${path}${path.includes("?") ? "&" : "?"}embedded=1&shop=${SHOP}&host=${host}&locale=${locale}&id_token=${sessionToken()}`;
 const bearer = (extra: Record<string, string> = {}) => ({ Authorization: `Bearer ${sessionToken()}`, ...extra });
 
 async function check(name: string, fn: () => Promise<string | void>) {
@@ -159,6 +160,29 @@ async function main() {
     return `statut ${res.status}`;
   });
 
+  console.log("Version anglaise (admin Shopify en anglais)");
+  for (const [path, expected] of [
+    ["/app", "Recent print jobs"], ["/app/print", "Add products"], ["/app/templates", "Your templates"], ["/app/barcodes", "Catalog coverage"],
+    ["/app/settings", "Print method"], ["/app/receive", "Scan-to-receive"], ["/app/promos", "Price changes"], ["/app/plans", "Current plan"], ["/app/help", "Margins: none."],
+  ] as const) {
+    await check(`GET ${path} en anglais`, async () => {
+      // Le texte affiché seulement : les données du chargement (scripts) restent en français
+      const html = (await (await fetch(embedded(path, "en"))).text()).replace(/<script[\s\S]*?<\/script>/g, "");
+      assert(html.includes(expected), `« ${expected} » absent de la page`);
+      const french = ["Réglages", "Modèles", "Formules", "Ajouter des produits", "Aucun", "étiquettes"].filter((w) => html.includes(w));
+      assert(!french.length, `reste du français : ${french.join(", ")}`);
+      return `« ${expected} »`;
+    });
+  }
+  await check("Bouton Imprimer de l'admin et caisse en anglais", async () => {
+    const options = (await (await fetch(`${APP}/api/print-link?locale=en`, { headers: bearer() })).json()) as { templates: { name: string }[] };
+    assert(options.templates.some((t) => t.name === "Avery 5160 (30 per sheet)"), "noms de formats en français");
+    const res = await fetch(`${APP}/print/pos?l=abc&locale=en`, { headers: bearer() });
+    const text = await res.text();
+    assert(res.status === 400 && text === "Unreadable print request", `statut ${res.status} : ${text}`);
+    return text;
+  });
+
   console.log("Impression");
   await check("Produit de 300 variantes : toutes listées dans la file", async () => {
     const html = await (await fetch(embedded(`/app/print?ids=${encodeURIComponent("gid://shopify/Product/3")}`))).text();
@@ -266,6 +290,10 @@ async function main() {
     const res = await fetch(`${APP}/api/print-link`, { headers: bearer({ Origin: "https://extensions.shopifycdn.com" }) });
     const body = (await res.json()) as { templates?: { name: string }[] };
     assert(res.status === 200 && body.templates?.some((t) => t.name === "Bijoux"), `statut ${res.status}`);
+  });
+  await check("Bouton Imprimer en anglais : le nom choisi par le marchand ne se traduit pas", async () => {
+    const body = (await (await fetch(`${APP}/api/print-link?locale=en`, { headers: bearer() })).json()) as { templates: { name: string }[] };
+    assert(body.templates.some((t) => t.name === "Bijoux"), "nom du modèle du marchand modifié");
   });
   await check("Caisse : PDF du panier", async () => {
     const res = await fetch(`${APP}/print/pos?l=11:2,21:1`, { headers: bearer() });
@@ -414,6 +442,25 @@ async function browserChecks(templateId: string) {
     });
     await context.close();
   }
+
+  // Parcours complet en anglais : textes de l'écran et message renvoyé après impression
+  const context = await browser.newContext({ viewport: { width: 1280, height: 900 }, userAgent: UA, locale: "en-US" });
+  const page = await context.newPage();
+  await page.exposeFunction("e2eToken", () => sessionToken());
+  await page.route("https://cdn.shopify.com/**", (route: { request(): { url(): string }; fulfill(o: object): void }) =>
+    route.fulfill({ contentType: "text/javascript", body: route.request().url().includes("app-bridge") ? APP_BRIDGE_STUB : "" }),
+  );
+  await check("anglais : file d'impression, quantités puis impression PDF", async () => {
+    await page.goto(embedded(`/app/print?ids=${encodeURIComponent("gid://shopify/Product/1")}`, "en"), { waitUntil: "networkidle" });
+    await page.getByText("Bague Lune").first().waitFor();
+    await page.locator("s-button", { hasText: "All to 1" }).click();
+    await page.locator('s-section[heading="2 labels"]').waitFor({ state: "attached", timeout: 5000 });
+    await page.locator("s-button", { hasText: /^Print$/ }).click();
+    await page.getByText("labels sent to the printer").first().waitFor({ timeout: 20000 });
+    await page.screenshot({ path: join(shots, "e2e-impression-en.png"), fullPage: true });
+    return "« 2 labels », « labels sent to the printer »";
+  });
+  await context.close();
   await browser.close();
 }
 
