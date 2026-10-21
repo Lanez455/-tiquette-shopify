@@ -103,3 +103,15 @@ model BarcodeChange {
   @@index([shop, batchId])
   @@index([shop, variantId])
 }
+
+// Prix imprimé sur la dernière étiquette de chaque variante (F21) : sert à
+// repérer les étiquettes à refaire quand un prix change
+model PrintedPrice {
+  shop           String
+  variantId      String
+  price          String?
+  compareAtPrice String?
+  printedAt      DateTime @default(now())
+
+  @@id([shop, variantId])
+}

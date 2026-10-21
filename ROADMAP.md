@@ -33,7 +33,7 @@ Critères de validation : voir docs/SPEC.md. « Cœur » = la logique est écrit
 ## Codes GS1, modèles et promotions
 - [x] F19 Import GS1
 - [ ] F20 Modèle automatique par collection
-- [ ] F21 Réétiquetage des promotions
+- [x] F21 Réétiquetage des promotions
 - [ ] F22 Étiquettes de rayon et QR codes
 
 ## Lancement

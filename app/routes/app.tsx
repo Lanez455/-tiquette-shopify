@@ -17,6 +17,7 @@ export default function App() {
         <s-link href="/app">Accueil</s-link>
         <s-link href="/app/print">Impression</s-link>
         <s-link href="/app/receive">Réception</s-link>
+        <s-link href="/app/promos">Prix changés</s-link>
         <s-link href="/app/templates">Modèles</s-link>
         <s-link href="/app/barcodes">Codes-barres</s-link>
         <s-link href="/app/settings">Réglages</s-link>

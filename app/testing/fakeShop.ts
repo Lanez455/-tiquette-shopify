@@ -186,6 +186,27 @@ export class FakeShop {
     return result;
   }
 
+  opVariantPrices({ ids }: Record<string, unknown>) {
+    return {
+      nodes: (ids as string[]).map((id) => {
+        const v = this.variants.get(id);
+        return v ? { id, displayName: `${this.products.get(v.productId)!.title} - ${v.title}`, price: v.price, compareAtPrice: v.compareAtPrice } : null;
+      }),
+    };
+  }
+
+  opVariantProducts({ ids }: Record<string, unknown>) {
+    return { nodes: (ids as string[]).map((id) => (this.variants.has(id) ? { id, product: { id: this.variants.get(id)!.productId } } : null)) };
+  }
+
+  opSetCompareAt({ productId, variants }: Record<string, unknown>) {
+    for (const input of variants as { id: string; compareAtPrice: string }[]) {
+      const v = this.variants.get(input.id);
+      if (v && v.productId === productId) v.compareAtPrice = input.compareAtPrice;
+    }
+    return { productVariantsBulkUpdate: { userErrors: [] } };
+  }
+
   opShopFormat() {
     return { shop: { currencyCode: "EUR" }, shopLocales: [{ locale: "fr", primary: true }] };
   }

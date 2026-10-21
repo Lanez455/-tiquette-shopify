@@ -1,5 +1,5 @@
 import type { ResolvedTemplate } from "../labels/templates.server";
-import { expandToVariantIds, fetchVariantsForLabels } from "../shopify/catalog";
+import { expandToVariantIds, fetchVariantsForLabels, type LabelVariant } from "../shopify/catalog";
 import type { Gql } from "../shopify/graphql";
 import { AUTO_TEMPLATE, MAX_PER_JOB, MAX_PER_LINE, PrintJobError, type PrintLine } from "./job";
 import { renderPrintGroups, type PrintSettings } from "./render.server";
@@ -77,9 +77,9 @@ export async function renderLinkedJob(args: {
   job: { templateId: string; itemsJson: string };
   templates: ResolvedTemplate[];
   settings: PrintSettings;
-}): Promise<{ pdf: Uint8Array; warnings: string[] }> {
+}): Promise<{ pdf: Uint8Array; warnings: string[]; variants: LabelVariant[] }> {
   const lines = JSON.parse(args.job.itemsJson) as PrintLine[];
-  const { groups } = await renderPrintGroups({
+  const { groups, variants } = await renderPrintGroups({
     gql: args.gql,
     lines,
     templates: args.templates,
@@ -89,7 +89,7 @@ export async function renderLinkedJob(args: {
   });
   const group = groups[0];
   if (!group) throw new PrintJobError("Ces produits n'existent plus");
-  return { pdf: group.pdf, warnings: group.warnings };
+  return { pdf: group.pdf, warnings: group.warnings, variants };
 }
 
 // La caisse passe ses lignes dans l'adresse : « 123:2,456:1 » (id de variante : quantité)

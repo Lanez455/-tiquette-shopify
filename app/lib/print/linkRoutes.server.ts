@@ -4,6 +4,7 @@ import type { Gql } from "../shopify/graphql";
 import { printContext } from "./context.server";
 import { PrintJobError } from "./job";
 import { LINK_SOURCES, planLinkedJob, renderLinkedJob, type LinkRequest } from "./links.server";
+import { recordPrintedPrices } from "./promo.server";
 import { createPrintLink } from "./signedLink";
 
 export const appSecret = () => process.env.SHOPIFY_API_SECRET ?? "";
@@ -63,7 +64,8 @@ export async function renderDirect(gql: Gql, shop: string, body: LinkRequest, so
   try {
     const { job, templates } = await recordJob(gql, shop, body, source);
     const { printSettings } = await printContext(gql, shop);
-    const { pdf } = await renderLinkedJob({ gql, job, templates, settings: printSettings });
+    const { pdf, variants } = await renderLinkedJob({ gql, job, templates, settings: printSettings });
+    await recordPrintedPrices(shop, variants);
     return pdfResponse(pdf, job.id);
   } catch (error) {
     if (error instanceof PrintJobError) return textResponse(error.message, 400);

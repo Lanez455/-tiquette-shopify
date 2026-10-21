@@ -6,6 +6,7 @@ import { PrintJobError, type PrintLine } from "../lib/print/job";
 import { printContext } from "../lib/print/context.server";
 import { renderPrintGroups } from "../lib/print/render.server";
 import { toDirect, type DirectOutput } from "../lib/print/direct.server";
+import { recordPrintedPrices } from "../lib/print/promo.server";
 import { gqlFromAdmin } from "../lib/shopify/graphql";
 
 interface PrintRequest {
@@ -47,7 +48,7 @@ export const action = async ({ request }: ActionFunctionArgs) => {
     // Les Dymo LabelWriter impriment à 300 ppp : les barres sont calées dessus
     if (output === "dymo") printSettings.printerDpi = 300;
     const templates = await listTemplates(session.shop);
-    const { groups } = await renderPrintGroups({
+    const { groups, variants } = await renderPrintGroups({
       gql,
       lines,
       templates,
@@ -59,6 +60,10 @@ export const action = async ({ request }: ActionFunctionArgs) => {
     });
     // Conversion avant l'enregistrement : une planche refusée n'entre pas dans l'historique
     const direct = output === "pdf" ? null : await toDirect(groups, templates, output, printSettings.printerDpi);
+    if (!body.preview) {
+      const printed = new Set(lines.filter((l) => l.quantity > 0).map((l) => l.variantId));
+      await recordPrintedPrices(session.shop, variants.filter((v) => printed.has(v.variantId)));
+    }
     if (!body.preview && !body.fallback) {
       await prisma.printJob.create({
         data: {

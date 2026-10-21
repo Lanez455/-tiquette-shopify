@@ -5,6 +5,7 @@ import { listTemplates } from "../lib/labels/templates.server";
 import { printContext } from "../lib/print/context.server";
 import { PrintJobError } from "../lib/print/job";
 import { appSecret, pdfResponse, textResponse as text } from "../lib/print/linkRoutes.server";
+import { recordPrintedPrices } from "../lib/print/promo.server";
 import { renderLinkedJob } from "../lib/print/links.server";
 import { InvalidLinkError, verifyPrintLink } from "../lib/print/signedLink";
 import { gqlFromAdmin } from "../lib/shopify/graphql";
@@ -27,7 +28,8 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
     const { admin } = await unauthenticated.admin(payload.shop);
     const gql = gqlFromAdmin(admin);
     const { printSettings } = await printContext(gql, payload.shop);
-    const { pdf } = await renderLinkedJob({ gql, job, templates: await listTemplates(payload.shop), settings: printSettings });
+    const { pdf, variants } = await renderLinkedJob({ gql, job, templates: await listTemplates(payload.shop), settings: printSettings });
+    await recordPrintedPrices(payload.shop, variants);
     return pdfResponse(pdf, job.id);
   } catch (error) {
     if (error instanceof PrintJobError) return text(error.message, 400);
