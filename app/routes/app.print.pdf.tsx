@@ -7,6 +7,8 @@ import { printContext } from "../lib/print/context.server";
 import { renderPrintGroups } from "../lib/print/render.server";
 import { toDirect, type DirectOutput } from "../lib/print/direct.server";
 import { recordPrintedPrices } from "../lib/print/promo.server";
+import { PlanLimitError } from "../lib/billing/plans";
+import { enforcePrint } from "../lib/billing/usage.server";
 import { gqlFromAdmin } from "../lib/shopify/graphql";
 
 interface PrintRequest {
@@ -43,8 +45,13 @@ export const action = async ({ request }: ActionFunctionArgs) => {
   }
 
   try {
-    const { printSettings, fallbackTemplateId } = await printContext(gql, session.shop);
     const output = body.output === "zpl" || body.output === "dymo" ? body.output : "pdf";
+    // Formule : quota mensuel et fonctions incluses (un repli sur le PDF est déjà compté)
+    if (!body.preview && !body.fallback) {
+      const labels = lines.reduce((sum, l) => sum + (l.quantity > 0 ? l.quantity : 0), 0);
+      await enforcePrint(gql, session.shop, { source, output, labels });
+    }
+    const { printSettings, fallbackTemplateId } = await printContext(gql, session.shop);
     // Les Dymo LabelWriter impriment à 300 ppp : les barres sont calées dessus
     if (output === "dymo") printSettings.printerDpi = 300;
     const templates = await listTemplates(session.shop);
@@ -86,6 +93,7 @@ export const action = async ({ request }: ActionFunctionArgs) => {
     });
   } catch (error) {
     if (error instanceof PrintJobError) return Response.json({ error: error.message }, { status: 400 });
+    if (error instanceof PlanLimitError) return Response.json({ error: error.message, upgrade: true }, { status: 402 });
     throw error;
   }
 };

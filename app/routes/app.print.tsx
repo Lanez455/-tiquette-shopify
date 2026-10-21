@@ -13,6 +13,7 @@ import { docKind, inventoryDocLines, listInventoryDocs, type InventoryDoc } from
 import { parseLabelCsv } from "../lib/import/csv";
 import { matchCsvRows } from "../lib/import/match";
 import { parseLinesParam } from "../lib/print/links.server";
+import { currentPlan, PlanLimitError, requireFeature } from "../lib/billing/plans";
 
 interface Line {
   variantId: string;
@@ -84,6 +85,15 @@ export const action = async ({ request }: ActionFunctionArgs): Promise<AddResult
   const settings = await getSettings(session.shop);
   const form = await request.formData();
   const intent = form.get("intent");
+
+  try {
+    const plan = await currentPlan(gql, session.shop);
+    if (intent === "document") requireFeature(plan, "purchase_orders");
+    if (intent === "csv") requireFeature(plan, "csv");
+  } catch (error) {
+    if (error instanceof PlanLimitError) return { lines: [], notice: error.message };
+    throw error;
+  }
 
   if (intent === "document") {
     const id = String(form.get("docId") ?? "");

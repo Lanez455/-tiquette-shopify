@@ -6,6 +6,8 @@ import { PrintJobError } from "./job";
 import { LINK_SOURCES, planLinkedJob, renderLinkedJob, type LinkRequest } from "./links.server";
 import { recordPrintedPrices } from "./promo.server";
 import { createPrintLink } from "./signedLink";
+import { PlanLimitError } from "../billing/plans";
+import { enforcePrint } from "../billing/usage.server";
 
 export const appSecret = () => process.env.SHOPIFY_API_SECRET ?? "";
 
@@ -22,6 +24,7 @@ export async function linkOptions(gql: Gql, shop: string) {
 async function recordJob(gql: Gql, shop: string, body: LinkRequest, source: string) {
   const [templates, { fallbackTemplateId }] = await Promise.all([listTemplates(shop), printContext(gql, shop)]);
   const plan = await planLinkedJob(gql, body, templates, fallbackTemplateId);
+  await enforcePrint(gql, shop, { source, labels: plan.labelCount });
   const job = await prisma.printJob.create({
     data: {
       shop,
@@ -42,7 +45,7 @@ export async function createLinkResponse(gql: Gql, shop: string, body: LinkReque
     const base = (process.env.SHOPIFY_APP_URL ?? "").replace(/\/$/, "");
     return { url: `${base}/print/doc?${query}`, labelCount: plan.labelCount };
   } catch (error) {
-    if (error instanceof PrintJobError) return { error: error.message };
+    if (error instanceof PrintJobError || error instanceof PlanLimitError) return { error: error.message };
     throw error;
   }
 }
@@ -69,6 +72,7 @@ export async function renderDirect(gql: Gql, shop: string, body: LinkRequest, so
     return pdfResponse(pdf, job.id);
   } catch (error) {
     if (error instanceof PrintJobError) return textResponse(error.message, 400);
+    if (error instanceof PlanLimitError) return textResponse(error.message, 402);
     throw error;
   }
 }

@@ -37,6 +37,6 @@ Critères de validation : voir docs/SPEC.md. « Cœur » = la logique est écrit
 - [x] F22 Étiquettes de rayon et QR codes
 
 ## Lancement
-- [ ] Formules Gratuit, Pro, Magasin (API de facturation)
+- [x] Formules Gratuit, Pro, Magasin (API de facturation ; à essayer sur une boutique de développement)
 - [ ] Test de non-régression des PDF
 - [ ] Dossier de revue Shopify

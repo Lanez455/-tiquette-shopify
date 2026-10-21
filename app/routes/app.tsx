@@ -20,6 +20,7 @@ export default function App() {
         <s-link href="/app/promos">Prix changés</s-link>
         <s-link href="/app/templates">Modèles</s-link>
         <s-link href="/app/barcodes">Codes-barres</s-link>
+        <s-link href="/app/plans">Formules</s-link>
         <s-link href="/app/settings">Réglages</s-link>
         <s-link href="/app/help">Aide</s-link>
       </s-app-nav>

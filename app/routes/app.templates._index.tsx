@@ -2,6 +2,8 @@ import type { ActionFunctionArgs, LoaderFunctionArgs } from "react-router";
 import { Form, redirect, useActionData, useLoaderData } from "react-router";
 import prisma from "../db.server";
 import { authenticate } from "../shopify.server";
+import { can, currentPlan, FREE_CUSTOM_TEMPLATES, PlanLimitError } from "../lib/billing/plans";
+import { gqlFromAdmin } from "../lib/shopify/graphql";
 import { defaultLayout } from "../lib/labels/defaultLayouts";
 import { customFormat, FORMATS, getFormat } from "../lib/labels/formats";
 import { listTemplates } from "../lib/labels/templates.server";
@@ -25,7 +27,7 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
 };
 
 export const action = async ({ request }: ActionFunctionArgs) => {
-  const { session } = await authenticate.admin(request);
+  const { admin, session } = await authenticate.admin(request);
   const form = await request.formData();
   const intent = form.get("intent");
 
@@ -33,6 +35,12 @@ export const action = async ({ request }: ActionFunctionArgs) => {
     const templateId = String(form.get("templateId"));
     await prisma.shopSettings.upsert({ where: { shop: session.shop }, create: { shop: session.shop, defaultTemplateId: templateId }, update: { defaultTemplateId: templateId } });
     return { message: "Modèle par défaut enregistré." };
+  }
+
+  // Formule Gratuit : un seul modèle personnalisé
+  const plan = await currentPlan(gqlFromAdmin(admin), session.shop);
+  if (!can(plan, "unlimited_templates") && (await prisma.labelTemplate.count({ where: { shop: session.shop } })) >= FREE_CUSTOM_TEMPLATES) {
+    return { error: new PlanLimitError("unlimited_templates").message };
   }
 
   // Création : à partir d'un format prêt, ou d'une taille libre (F1)

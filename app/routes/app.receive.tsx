@@ -4,11 +4,15 @@ import { useLoaderData, useNavigate } from "react-router";
 import { authenticate } from "../shopify.server";
 import { gqlFromAdmin } from "../lib/shopify/graphql";
 import { listLocations } from "../lib/shopify/receiving";
+import { can, currentPlan, PlanLimitError } from "../lib/billing/plans";
 import type { ScanResult } from "./app.receive.scan";
 
 export const loader = async ({ request }: LoaderFunctionArgs) => {
-  const { admin } = await authenticate.admin(request);
-  return { locations: await listLocations(gqlFromAdmin(admin)) };
+  const { admin, session } = await authenticate.admin(request);
+  const gql = gqlFromAdmin(admin);
+  const plan = await currentPlan(gql, session.shop);
+  if (!can(plan, "receiving")) return { locations: [], locked: new PlanLimitError("receiving").message };
+  return { locations: await listLocations(gql), locked: null };
 };
 
 interface Received {
@@ -20,7 +24,7 @@ interface Received {
 }
 
 export default function Receive() {
-  const { locations } = useLoaderData<typeof loader>();
+  const { locations, locked } = useLoaderData<typeof loader>();
   const navigate = useNavigate();
   const [locationId, setLocationId] = useState(locations[0]?.id ?? "");
   const [code, setCode] = useState("");
@@ -79,6 +83,7 @@ export default function Receive() {
 
   return (
     <s-page heading="Réception par scan">
+      {locked && <s-banner tone="info">{locked}</s-banner>}
       <s-section>
         <s-select label="Magasin qui reçoit" value={locationId} onChange={(e) => setLocationId(e.currentTarget.value)}>
           {locations.map((l) => (
