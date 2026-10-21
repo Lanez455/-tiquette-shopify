@@ -10,6 +10,7 @@ export type FieldKey =
   | "vendor"
   | "productType"
   | "barcodeDigits"
+  // « metafield:product.namespace.key » ou « metafield:variant.namespace.key »
   | `metafield:${string}`;
 
 interface Box {

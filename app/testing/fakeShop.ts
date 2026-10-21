@@ -82,6 +82,21 @@ export class FakeShop {
     };
   }
 
+  opProductVariantIds({ ids }: Record<string, unknown>) {
+    return {
+      nodes: (ids as string[]).map((id) => {
+        if (this.products.has(id)) {
+          return { id, variants: { nodes: [...this.variants.values()].filter((v) => v.productId === id).map((v) => ({ id: v.id })) } };
+        }
+        return this.variants.has(id) ? { id } : null;
+      }),
+    };
+  }
+
+  opShopFormat() {
+    return { shop: { currencyCode: "EUR" }, shopLocales: [{ locale: "fr", primary: true }] };
+  }
+
   opUpdateBarcodes({ productId, variants }: Record<string, unknown>) {
     const userErrors: { field: string[]; message: string }[] = [];
     for (const input of variants as { id: string; barcode: string }[]) {

@@ -37,6 +37,11 @@ model ShopSettings {
   defaultTemplateId   String?
   offsetXmm           Float    @default(0)
   offsetYmm           Float    @default(0)
+  rotate90            Boolean  @default(false)
+  // Résolution de l'imprimante thermique : 203 ou 300 ppp
+  printerDpi          Int      @default(203)
+  // Position du symbole monétaire : "auto" | "before" | "after"
+  currencySymbol      String   @default("auto")
   // "pdf" | "zebra" | "dymo"
   printMethod         String   @default("pdf")
   // Symbologie des codes générés : "ean13" | "upca" | "code128"

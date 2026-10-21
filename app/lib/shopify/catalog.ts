@@ -160,3 +160,86 @@ export async function writeBarcodes(gql: Gql, writes: BarcodeWrite[]): Promise<v
     }
   }
 }
+
+const PRODUCT_VARIANT_IDS = `#graphql
+  query ProductVariantIds($ids: [ID!]!) {
+    nodes(ids: $ids) {
+      ... on Product { id variants(first: 250) { nodes { id } } }
+      ... on ProductVariant { id }
+    }
+  }`;
+
+// Les extensions d'impression envoient des produits ou des variantes : tout devient variantes
+export async function expandToVariantIds(gql: Gql, ids: string[]): Promise<string[]> {
+  const out: string[] = [];
+  for (let i = 0; i < ids.length; i += NODES_PER_CALL) {
+    const data = await gql<{ nodes: ({ id: string; variants?: { nodes: { id: string }[] } } | null)[] }>(
+      PRODUCT_VARIANT_IDS,
+      { ids: ids.slice(i, i + NODES_PER_CALL) },
+    );
+    for (const node of data.nodes) {
+      if (!node) continue;
+      if (node.variants) out.push(...node.variants.nodes.map((v) => v.id));
+      else out.push(node.id);
+    }
+  }
+  return [...new Set(out)];
+}
+
+const SHOP_FORMAT = `#graphql
+  query ShopFormat {
+    shop { currencyCode }
+    shopLocales(published: true) { locale primary }
+  }`;
+
+export async function fetchShopFormat(gql: Gql): Promise<{ currency: string; locale: string }> {
+  const data = await gql<{ shop: { currencyCode: string }; shopLocales: { locale: string; primary: boolean }[] }>(SHOP_FORMAT);
+  const locale = data.shopLocales.find((l) => l.primary)?.locale ?? "fr";
+  return { currency: data.shop.currencyCode, locale };
+}
+
+export interface ProductFilter {
+  collectionId?: string;
+  vendor?: string;
+  productType?: string;
+  // Produits ajoutés depuis cette date (AAAA-MM-JJ)
+  createdSince?: string;
+}
+
+const quote = (value: string) => `"${value.replace(/["\\]/g, "\\$&")}"`;
+
+// Syntaxe de recherche de l'API Admin, avec les valeurs échappées
+export function productSearchQuery(filter: ProductFilter): string {
+  const parts: string[] = [];
+  if (filter.collectionId) parts.push(`collection_id:${filter.collectionId.split("/").pop()!.replace(/\D/g, "")}`);
+  if (filter.vendor) parts.push(`vendor:${quote(filter.vendor)}`);
+  if (filter.productType) parts.push(`product_type:${quote(filter.productType)}`);
+  if (filter.createdSince && /^\d{4}-\d{2}-\d{2}$/.test(filter.createdSince)) parts.push(`created_at:>=${filter.createdSince}`);
+  return parts.join(" AND ");
+}
+
+const FILTERED_VARIANTS = `#graphql
+  query FilteredVariants($query: String!, $after: String) {
+    products(first: 100, after: $after, query: $query) {
+      nodes { variants(first: 100) { nodes { id } } }
+      pageInfo { hasNextPage endCursor }
+    }
+  }`;
+
+export const MAX_FILTERED_VARIANTS = 2000;
+
+// « Tout sélectionner » sur un filtre (F13), plafonné pour garder l'écran utilisable
+export async function fetchVariantIdsByFilter(gql: Gql, filter: ProductFilter): Promise<{ ids: string[]; truncated: boolean }> {
+  const query = productSearchQuery(filter);
+  const ids: string[] = [];
+  let after: string | null = null;
+  do {
+    const data: {
+      products: { nodes: { variants: { nodes: { id: string }[] } }[]; pageInfo: { hasNextPage: boolean; endCursor: string | null } };
+    } = await gql(FILTERED_VARIANTS, { query, after });
+    for (const p of data.products.nodes) ids.push(...p.variants.nodes.map((v) => v.id));
+    if (ids.length >= MAX_FILTERED_VARIANTS) return { ids: ids.slice(0, MAX_FILTERED_VARIANTS), truncated: true };
+    after = data.products.pageInfo.hasNextPage ? data.products.pageInfo.endCursor : null;
+  } while (after);
+  return { ids, truncated: false };
+}
