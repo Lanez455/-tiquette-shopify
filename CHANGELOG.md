@@ -1,6 +1,7 @@
 # Journal des versions
 
 ## Non publié
+- Audit avant mise en production : requêtes sous la limite de coût de Shopify (la lecture des étiquettes était refusée), produits de plus de 250 variantes, relance automatique en cas de débit limité, effacement complet des données au shop/redact, bouton Imprimer qui ne reste plus bloqué, éditeur adapté au téléphone, confirmation avant suppression d'un modèle, lint et essai de bout en bout.
 - Écran d'impression : sélection, filtres, quantité par défaut (F13), case de départ, aperçu, file vidée après impression et historique avec réimpression en 1 clic (F16), modèle automatique par collection (F20).
 - Éditeur visuel de modèles (F5), métachamps (F6), réglages fins et fiches d'aide par imprimante.
 - Bouton « Imprimer » dans l'admin (fiche et liste des produits) et étiquettes depuis la caisse (F15), par liens signés.

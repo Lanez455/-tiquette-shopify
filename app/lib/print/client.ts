@@ -24,7 +24,12 @@ export function printPdfUrl(url: string): Promise<void> {
     frame.style.height = "0";
     frame.style.border = "0";
     frame.src = url;
+    // Navigateur sans lecteur PDF (réglage « télécharger les PDF », mode sans
+    // affichage) : le cadre ne se charge jamais et le PDF part en téléchargement.
+    // On n'attend pas indéfiniment, sinon l'écran resterait figé.
+    const giveUp = setTimeout(resolve, 8000);
     frame.onload = () => {
+      clearTimeout(giveUp);
       try {
         frame.contentWindow?.focus();
         frame.contentWindow?.print();
