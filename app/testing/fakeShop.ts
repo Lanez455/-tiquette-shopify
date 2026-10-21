@@ -136,6 +136,56 @@ export class FakeShop {
     return { inventoryPurchaseOrders: { nodes: nodes("InventoryPurchaseOrder/") }, inventoryTransfers: { nodes: nodes("InventoryTransfer/") } };
   }
 
+  // Stock par magasin : « inventoryItemId|locationId » → disponible
+  stock = new Map<string, number>();
+  locations = [{ id: "gid://shopify/Location/1", name: "Boutique", isActive: true }];
+  untracked = new Set<string>();
+  usedKeys = new Map<string, unknown>();
+  // Simule une vente au même moment : modifie le stock juste avant l'ajustement
+  beforeAdjust?: () => void;
+
+  opReceivingLocations() {
+    return { locations: { nodes: this.locations } };
+  }
+
+  opScanLookup({ query }: Record<string, unknown>) {
+    const found = this.opVariantLookup({ query }).productVariants.nodes;
+    return {
+      productVariants: {
+        nodes: found.map((n) => ({ ...n, displayName: this.variants.get(n.id)!.title, inventoryItem: { id: `item-${n.id}` } })),
+      },
+    };
+  }
+
+  opInventoryAvailable({ id, locationId }: Record<string, unknown>) {
+    const key = `${id}|${locationId}`;
+    if (!String(id).startsWith("item-")) return { inventoryItem: null };
+    return {
+      inventoryItem: {
+        tracked: !this.untracked.has(String(id)),
+        inventoryLevel: this.stock.has(key) ? { quantities: [{ name: "available", quantity: this.stock.get(key)! }] } : null,
+      },
+    };
+  }
+
+  opReceiveAdjust({ input, idempotencyKey }: Record<string, unknown>) {
+    const key = String(idempotencyKey);
+    if (this.usedKeys.has(key)) return this.usedKeys.get(key);
+    this.beforeAdjust?.();
+    const { changes } = input as { changes: { delta: number; inventoryItemId: string; locationId: string; changeFromQuantity: number }[] };
+    for (const c of changes) {
+      const stockKey = `${c.inventoryItemId}|${c.locationId}`;
+      const current = this.stock.get(stockKey) ?? 0;
+      if (current !== c.changeFromQuantity) {
+        return { inventoryAdjustQuantities: { userErrors: [{ field: ["changeFromQuantity"], message: "The specified changeFromQuantity is stale", code: "CHANGE_FROM_QUANTITY_STALE" }] } };
+      }
+      this.stock.set(stockKey, current + c.delta);
+    }
+    const result = { inventoryAdjustQuantities: { userErrors: [] } };
+    this.usedKeys.set(key, result);
+    return result;
+  }
+
   opShopFormat() {
     return { shop: { currencyCode: "EUR" }, shopLocales: [{ locale: "fr", primary: true }] };
   }

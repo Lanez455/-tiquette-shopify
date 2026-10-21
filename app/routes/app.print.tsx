@@ -12,6 +12,7 @@ import { gqlFromAdmin, type Gql } from "../lib/shopify/graphql";
 import { docKind, inventoryDocLines, listInventoryDocs, type InventoryDoc } from "../lib/shopify/inventoryDocs";
 import { parseLabelCsv } from "../lib/import/csv";
 import { matchCsvRows } from "../lib/import/match";
+import { parseLinesParam } from "../lib/print/links.server";
 
 interface Line {
   variantId: string;
@@ -45,11 +46,22 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
   const url = new URL(request.url);
   const ids = (url.searchParams.get("ids") ?? "").split(",").filter((id) => id.startsWith("gid://shopify/"));
   const templates = await listTemplates(session.shop);
+  // Lignes déjà chiffrées, venues de la réception par scan (F18)
+  let given: { variantId: string; quantity: number }[] = [];
+  try {
+    if (url.searchParams.get("lines")) given = parseLinesParam(url.searchParams.get("lines")).slice(0, 250);
+  } catch {
+    given = [];
+  }
   // Bons de commande et transferts récents (F14) ; absents si l'accès n'est pas accordé
   const docs: InventoryDoc[] = await listInventoryDocs(gqlFromAdmin(admin)).catch(() => []);
   return {
     docs,
-    lines: ids.length ? await linesFor(gqlFromAdmin(admin), ids.slice(0, 250), asSetting(settings.defaultQuantity)) : [],
+    lines: given.length
+      ? await linesFor(gqlFromAdmin(admin), given.map((l) => l.variantId), "zero", new Map(given.map((l) => [l.variantId, l.quantity])))
+      : ids.length
+        ? await linesFor(gqlFromAdmin(admin), ids.slice(0, 250), asSetting(settings.defaultQuantity))
+        : [],
     templates: templates.map((t) => ({ id: t.id, name: t.name, sheet: t.format.kind === "sheet", hasRules: t.collectionIds.length > 0 })),
     defaultTemplateId: settings.defaultTemplateId ?? "builtin:dymo-30336",
     source: url.searchParams.get("source") ?? "product",
@@ -196,7 +208,7 @@ export default function Print() {
     // La file se vide après chaque impression (F16) ; elle reste dans l'historique
     setLines([]);
     setSource("product");
-    if (params.has("ids")) setParams({});
+    if (params.has("ids") || params.has("lines")) setParams({});
   };
 
   async function print() {
