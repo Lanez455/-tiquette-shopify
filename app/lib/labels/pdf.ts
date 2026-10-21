@@ -1,9 +1,8 @@
 import { readFile } from "node:fs/promises";
 import { createRequire } from "node:module";
 import fontkit from "@pdf-lib/fontkit";
-import bwipjs from "bwip-js/node";
 import { degrees, PDFDocument, rgb, type PDFFont, type PDFPage } from "pdf-lib";
-import { isValidGtin } from "../barcode/checksum";
+import { barcodeGeometry, snapToDots } from "./barcodeDraw";
 import { fitText } from "./fitText";
 import type { LabelFormat } from "./formats";
 import { formatPrice, type PriceOptions } from "./price";
@@ -22,12 +21,17 @@ export interface RenderOptions {
   offsetXMm?: number;
   offsetYMm?: number;
   rotate90?: boolean;
+  // Résolution de l'imprimante : les barres sont calées sur ses points.
+  // 203 ppp pour la plupart des thermiques, 300 pour les modèles haut de gamme.
+  printerDpi?: number;
 }
 
 export interface RenderResult {
   pdf: Uint8Array;
   // Textes trop longs même à la taille minimale, à signaler dans l'aperçu
   overflows: { itemIndex: number; element: number }[];
+  // Codes-barres trop larges pour leur zone, même avec des barres d'un point
+  barcodeTooWide: { itemIndex: number; element: number }[];
 }
 
 const require = createRequire(import.meta.url);
@@ -44,46 +48,6 @@ async function loadFonts(doc: PDFDocument) {
     regular: await doc.embedFont(regular, { subset: true }),
     bold: await doc.embedFont(bold, { subset: true }),
   };
-}
-
-function barcodeType(code: string): string {
-  if (/^\d{13}$/.test(code) && isValidGtin(code)) return "ean13";
-  if (/^\d{12}$/.test(code) && isValidGtin(code)) return "upca";
-  if (/^\d{8}$/.test(code) && isValidGtin(code)) return "ean8";
-  return "code128";
-}
-
-const BWIP_SCALE = 4;
-// bwip-js compte la hauteur des barres en mm à 72 points par pouce
-const PX_PER_MM = (72 / 25.4) * BWIP_SCALE;
-
-const pngSize = (png: Buffer) => ({ width: png.readUInt32BE(16), height: png.readUInt32BE(20) });
-
-// Largeur maximale d'une barre fine. Au-delà, le code et ses chiffres deviennent
-// démesurés sur une étiquette large ; 0,33 mm est la taille nominale d'un EAN-13.
-const MAX_MODULE_MM = 0.4;
-
-// Ajuste la hauteur des barres pour que le code remplisse sa zone : la largeur
-// dépend du nombre de modules, la hauteur est libre.
-export async function barcodePng(code: string, boxWMm: number, boxHMm: number, showDigits: boolean): Promise<Buffer> {
-  const render = (heightMm: number) =>
-    bwipjs.toBuffer({
-      bcid: barcodeType(code),
-      text: code,
-      scale: BWIP_SCALE,
-      height: heightMm,
-      includetext: showDigits,
-      textxalign: "center",
-      // Marge blanche autour des barres : sans elle, les scanners ratent les EAN et UPC
-      paddingwidth: 10,
-      paddingheight: 2,
-    });
-  const firstHeightMm = 10;
-  const first = pngSize(await render(firstHeightMm));
-  const extraPx = first.height - firstHeightMm * PX_PER_MM;
-  const drawnWidthMm = Math.min(boxWMm, (first.width / BWIP_SCALE) * MAX_MODULE_MM);
-  const targetPx = (first.width * boxHMm) / drawnWidthMm - extraPx;
-  return render(Math.max(3, Math.min(60, targetPx / PX_PER_MM)));
 }
 
 function fieldValue(item: LabelItem, field: FieldKey, price: PriceOptions): string {
@@ -120,7 +84,8 @@ export async function renderLabels(options: RenderOptions): Promise<RenderResult
   const offsetX = mmToPt(options.offsetXMm ?? 0);
   const offsetY = mmToPt(options.offsetYMm ?? 0);
   const overflows: RenderResult["overflows"] = [];
-  const barcodeCache = new Map<string, Awaited<ReturnType<PDFDocument["embedPng"]>>>();
+  const barcodeTooWide: RenderResult["barcodeTooWide"] = [];
+  const dpi = options.printerDpi ?? (format.kind === "sheet" ? 600 : 203);
 
   const pages: PDFPage[] = [];
   const slots = layoutSlots(format, items.length, options.start);
@@ -140,24 +105,29 @@ export async function renderLabels(options: RenderOptions): Promise<RenderResult
     for (const [elementIndex, element] of layout.elements.entries()) {
       if (element.kind === "barcode") {
         if (!item.barcode) continue;
-        const cacheKey = `${item.barcode}|${element.wMm}|${element.hMm}|${element.showDigits}`;
-        let image = barcodeCache.get(cacheKey);
-        if (!image) {
-          image = await doc.embedPng(await barcodePng(item.barcode, element.wMm, element.hMm, element.showDigits));
-          barcodeCache.set(cacheKey, image);
-        }
-        // Garde les proportions pour que le code reste lisible au scan
         const boxW = mmToPt(element.wMm);
         const boxH = mmToPt(element.hMm);
-        const scale = Math.min(boxW / image.width, boxH / image.height);
-        const w = image.width * scale;
-        const h = image.height * scale;
-        page.drawImage(image, {
-          x: toX(element.xMm) + (boxW - w) / 2,
-          y: toY(element.yMm) - boxH + (boxH - h) / 2,
-          width: w,
-          height: h,
-        });
+        const geometry = barcodeGeometry(item.barcode, boxW, dpi);
+        if (!geometry.fits) barcodeTooWide.push({ itemIndex: index, element: elementIndex });
+        const digitSize = element.showDigits
+          ? Math.min(boxH * 0.25, (geometry.widthPt / item.barcode.length) * 1.6, 9)
+          : 0;
+        const barsH = boxH - (element.showDigits ? digitSize * 1.15 : 0);
+        const left = snapToDots(toX(element.xMm) + (boxW - geometry.widthPt) / 2, dpi);
+        const top = toY(element.yMm);
+        for (const bar of geometry.bars) {
+          page.drawRectangle({ x: left + bar.x, y: top - barsH, width: bar.width, height: barsH, color: rgb(0, 0, 0) });
+        }
+        if (element.showDigits) {
+          const textW = fonts.regular.widthOfTextAtSize(item.barcode, digitSize);
+          page.drawText(item.barcode, {
+            x: left + (geometry.widthPt - textW) / 2,
+            y: top - boxH + digitSize * 0.15,
+            size: digitSize,
+            font: fonts.regular,
+            color: rgb(0, 0, 0),
+          });
+        }
         continue;
       }
 
@@ -195,5 +165,5 @@ export async function renderLabels(options: RenderOptions): Promise<RenderResult
   }
 
   if (pages.length === 0) doc.addPage([pageW, pageH]);
-  return { pdf: await doc.save(), overflows };
+  return { pdf: await doc.save(), overflows, barcodeTooWide };
 }

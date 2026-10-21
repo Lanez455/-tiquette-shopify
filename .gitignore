@@ -5,3 +5,4 @@ build
 prisma/*.sqlite*
 .shopify
 *.log
+simulation
