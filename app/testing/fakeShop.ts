@@ -21,6 +21,7 @@ export interface FakeProduct {
   productType: string;
   collectionIds: string[];
   metafields?: { namespace: string; key: string; value: string }[];
+  onlineStoreUrl?: string | null;
 }
 
 export class FakeShop {
@@ -74,6 +75,7 @@ export class FakeShop {
           metafields: { nodes: v.metafields ?? [] },
           product: {
             id: p.id, title: p.title, vendor: p.vendor, productType: p.productType,
+            onlineStoreUrl: p.onlineStoreUrl ?? null,
             collections: { nodes: p.collectionIds.map((id) => ({ id })) },
             metafields: { nodes: p.metafields ?? [] },
           },

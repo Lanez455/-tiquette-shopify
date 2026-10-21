@@ -54,6 +54,7 @@ const VARIANTS_FOR_LABELS = `#graphql
           title
           vendor
           productType
+          onlineStoreUrl
           collections(first: 25) { nodes { id } }
           metafields(first: 25) { nodes { namespace key value } }
         }
@@ -79,6 +80,8 @@ interface VariantNode {
     title: string;
     vendor: string;
     productType: string;
+    // Nul si le produit n'est pas publié sur la boutique en ligne
+    onlineStoreUrl: string | null;
     collections: { nodes: { id: string }[] };
     metafields: MetafieldNodes;
   };
@@ -124,6 +127,7 @@ export async function fetchVariantsForLabels(gql: Gql, ids: string[]): Promise<L
         collectionIds: v.product.collections.nodes.map((c) => c.id),
         inventoryQuantity: v.inventoryQuantity,
         metafields: metafieldMap(v.product.metafields, v.metafields),
+        productUrl: v.product.onlineStoreUrl,
       });
     }
   }

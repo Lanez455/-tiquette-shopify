@@ -34,7 +34,7 @@ Critères de validation : voir docs/SPEC.md. « Cœur » = la logique est écrit
 - [x] F19 Import GS1
 - [ ] F20 Modèle automatique par collection
 - [x] F21 Réétiquetage des promotions
-- [ ] F22 Étiquettes de rayon et QR codes
+- [x] F22 Étiquettes de rayon et QR codes
 
 ## Lancement
 - [ ] Formules Gratuit, Pro, Magasin (API de facturation)

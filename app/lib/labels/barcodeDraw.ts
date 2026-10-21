@@ -54,3 +54,37 @@ export const snapToDots = (pt: number, dpi: number) => {
   const dotPt = PT_PER_INCH / dpi;
   return Math.round(pt / dotPt) * dotPt;
 };
+
+export interface QrGeometry {
+  // Carrés noirs en points PDF depuis le coin haut-gauche du QR, regroupés par ligne
+  runs: { x: number; y: number; width: number; size: number }[];
+  sizePt: number;
+  moduleDots: number;
+  fits: boolean;
+}
+
+// Zone blanche du QR, en modules. La norme en demande 4 ; 2 suffisent aux
+// téléphones et laissent le code plus grand sur une petite étiquette.
+const QR_QUIET_MODULES = 2;
+
+// QR code calé sur les points de l'imprimante, comme les barres des codes-barres
+export function qrGeometry(text: string, boxPt: number, dpi: number): QrGeometry {
+  const [raw] = bwipjs.raw("qrcode", text, "eclevel=M") as unknown as { pixs: number[]; pixx: number; pixy: number }[];
+  const n = raw!.pixx;
+  const dotPt = PT_PER_INCH / dpi;
+  const fitDots = Math.floor(boxPt / ((n + 2 * QR_QUIET_MODULES) * dotPt));
+  const moduleDots = Math.max(1, fitDots);
+  const m = moduleDots * dotPt;
+  const runs: QrGeometry["runs"] = [];
+  for (let y = 0; y < n; y++) {
+    let x = 0;
+    while (x < n) {
+      if (!raw!.pixs[y * n + x]) { x++; continue; }
+      const start = x;
+      while (x < n && raw!.pixs[y * n + x]) x++;
+      runs.push({ x: start * m, y: y * m, width: (x - start) * m, size: m });
+    }
+  }
+  // Un module de moins de 2 points ne se lit plus au téléphone
+  return { runs, sizePt: n * m, moduleDots, fits: fitDots >= 2 };
+}

@@ -6,10 +6,25 @@ export const SAFE_MARGIN_MM = 1.5;
 
 // Mise en page de départ proposée pour chaque format, que le marchand modifie
 // ensuite dans l'éditeur (F5).
-export function defaultLayout(format: Pick<LabelFormat, "widthMm" | "heightMm">): LabelTemplateLayout {
+export function defaultLayout(format: Pick<LabelFormat, "widthMm" | "heightMm"> & { use?: "shelf" }): LabelTemplateLayout {
   const m = SAFE_MARGIN_MM;
   const w = format.widthMm - 2 * m;
   const h = format.heightMm - 2 * m;
+
+  // Étiquette de rayon (F22) : prix lisible de loin, QR code vers la fiche produit
+  if (format.use === "shelf") {
+    const qr = Math.min(h * 0.62, w * 0.36);
+    const left = w - qr - 2;
+    return {
+      elements: [
+        { kind: "field", field: "title", xMm: m, yMm: m, wMm: left, hMm: h * 0.3, maxFontSize: 11, minFontSize: 5, bold: true, maxLines: 2 },
+        { kind: "field", field: "price", xMm: m, yMm: m + h * 0.3, wMm: left, hMm: h * 0.32, maxFontSize: 30, minFontSize: 10, bold: true, maxLines: 1 },
+        { kind: "field", field: "compareAtPrice", xMm: m, yMm: m + h * 0.62, wMm: left, hMm: h * 0.12, maxFontSize: 10, minFontSize: 5, maxLines: 1 },
+        { kind: "qr", xMm: m + w - qr, yMm: m, wMm: qr, hMm: qr },
+        { kind: "barcode", xMm: m, yMm: m + h * 0.76, wMm: w, hMm: h * 0.24, showDigits: true },
+      ],
+    };
+  }
 
   // Très petites étiquettes (bijoux) : un code-barres n'y serait pas lisible
   if (format.widthMm < 22 || format.heightMm < 9) {

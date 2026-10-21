@@ -18,7 +18,7 @@ const PT_TO_MM = 25.4 / 72;
 
 function sampleText(e: LabelElement): string {
   if (e.kind === "text") return e.text;
-  if (e.kind === "barcode") return "";
+  if (e.kind === "barcode" || e.kind === "qr") return "";
   if (e.field.startsWith("metafield:")) return `[${e.field.split(".").slice(1).join(".")}]`;
   return SAMPLE[e.field] ?? "";
 }
@@ -84,7 +84,8 @@ export function LabelEditor({
         }}
       >
         {layout.elements.map((e, i) => {
-          const fontPx = e.kind === "barcode" ? 0 : e.maxFontSize * PT_TO_MM * scale;
+          const graphic = e.kind === "barcode" || e.kind === "qr";
+          const fontPx = graphic ? 0 : e.maxFontSize * PT_TO_MM * scale;
           return (
             <div
               key={i}
@@ -100,11 +101,16 @@ export function LabelEditor({
                 overflow: "hidden",
                 fontSize: fontPx,
                 lineHeight: 1.15,
-                fontWeight: e.kind !== "barcode" && e.bold ? 700 : 400,
-                textAlign: e.kind !== "barcode" ? e.align ?? "left" : "center",
+                fontWeight: !graphic && e.bold ? 700 : 400,
+                textAlign: !graphic ? e.align ?? "left" : "center",
                 textDecoration: e.kind === "field" && e.field === "compareAtPrice" ? "line-through" : "none",
                 fontFamily: "DejaVu Sans, Verdana, sans-serif",
-                background: e.kind === "barcode" ? "repeating-linear-gradient(90deg,#000 0 2px,#fff 2px 4px,#000 4px 5px,#fff 5px 8px)" : "transparent",
+                background:
+                  e.kind === "barcode"
+                    ? "repeating-linear-gradient(90deg,#000 0 2px,#fff 2px 4px,#000 4px 5px,#fff 5px 8px)"
+                    : e.kind === "qr"
+                      ? "repeating-conic-gradient(#000 0 25%,#fff 0 50%) 0 0/6px 6px"
+                      : "transparent",
               }}
             >
               {sampleText(e)}
@@ -125,6 +131,7 @@ export function LabelEditor({
           ))}
         </s-select>
         <s-button onClick={() => add({ kind: "barcode" })}>Code-barres</s-button>
+        <s-button onClick={() => add({ kind: "qr" })}>QR code (fiche produit)</s-button>
         <s-button onClick={() => add({ kind: "text", text: "Texte" })}>Texte libre</s-button>
         <s-text-field label="Métachamp (product.ns.clé ou variant.ns.clé)" value={metafield} onChange={(e) => setMetafield(e.currentTarget.value)}></s-text-field>
         <s-button onClick={() => add({ kind: "field", field: `metafield:${metafield}` as FieldKey })}>Ajouter le métachamp</s-button>
@@ -136,7 +143,9 @@ export function LabelEditor({
             {current.kind === "text" && (
               <s-text-field label="Texte" value={current.text} onChange={(e) => onChange(updateElement(layout, selected, { text: e.currentTarget.value }))}></s-text-field>
             )}
-            {current.kind !== "barcode" ? (
+            {current.kind === "qr" ? (
+              <s-text color="subdued">Le QR code ouvre la fiche du produit dans la boutique en ligne.</s-text>
+            ) : current.kind !== "barcode" ? (
               <>
                 <s-number-field label="Taille max (pt)" min={2} max={72} value={String(current.maxFontSize)} onChange={(e) => onChange(updateElement(layout, selected, { maxFontSize: Number(e.currentTarget.value) || current.maxFontSize }))}></s-number-field>
                 <s-number-field label="Taille min (pt)" min={2} max={72} value={String(current.minFontSize)} onChange={(e) => onChange(updateElement(layout, selected, { minFontSize: Number(e.currentTarget.value) || current.minFontSize }))}></s-number-field>

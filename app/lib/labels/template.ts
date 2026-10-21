@@ -31,7 +31,9 @@ export interface TextStyle {
 export type LabelElement =
   | ({ kind: "field"; field: FieldKey } & Box & TextStyle)
   | ({ kind: "text"; text: string } & Box & TextStyle)
-  | ({ kind: "barcode"; showDigits: boolean } & Box);
+  | ({ kind: "barcode"; showDigits: boolean } & Box)
+  // QR code vers la fiche produit de la boutique en ligne (F22)
+  | ({ kind: "qr" } & Box);
 
 export interface LabelTemplateLayout {
   elements: LabelElement[];
@@ -48,4 +50,6 @@ export interface LabelItem {
   productType?: string | null;
   barcode?: string | null;
   metafields?: Record<string, string>;
+  // Adresse de la fiche produit, pour le QR code (F22)
+  productUrl?: string | null;
 }

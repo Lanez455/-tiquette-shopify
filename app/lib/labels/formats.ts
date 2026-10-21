@@ -14,6 +14,8 @@ export interface RollFormat {
   widthMm: number;
   heightMm: number;
   shape: LabelShape;
+  // Étiquette de rayon (F22) : gros prix et QR code vers la fiche produit
+  use?: "shelf";
 }
 
 // Planche A4 / Letter pour imprimante laser ou jet d'encre
@@ -60,6 +62,7 @@ export const FORMATS: LabelFormat[] = [
   roll("zebra-1x1", "Zebra 1\" × 1\"", "Zebra", inToMm(1), inToMm(1)),
   roll("brother-dk1201", "Brother DK-1201 (29 × 90 mm)", "Brother", 90, 29),
   roll("brother-dk2205", "Brother DK-2205 (continu 62 mm)", "Brother", 62, 29),
+  { ...roll("rayon-zebra-3x2", "Étiquette de rayon Zebra 3\" × 2\" (prix + QR)", "Zebra", inToMm(3), inToMm(2)), use: "shelf" },
   roll("bijou-halteres", "Bijoux, étiquette haltère (2 3/16\" × 15/32\")", "Bijoux", inToMm(2.1875), inToMm(0.46875)),
   {
     kind: "sheet",

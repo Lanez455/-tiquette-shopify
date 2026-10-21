@@ -2,7 +2,7 @@ import { readFile } from "node:fs/promises";
 import { createRequire } from "node:module";
 import fontkit from "@pdf-lib/fontkit";
 import { degrees, PDFDocument, rgb, type PDFFont, type PDFPage } from "pdf-lib";
-import { barcodeGeometry, snapToDots } from "./barcodeDraw";
+import { barcodeGeometry, qrGeometry, snapToDots } from "./barcodeDraw";
 import { fitText } from "./fitText";
 import type { LabelFormat } from "./formats";
 import { formatPrice, type PriceOptions } from "./price";
@@ -127,6 +127,19 @@ export async function renderLabels(options: RenderOptions): Promise<RenderResult
             font: fonts.regular,
             color: rgb(0, 0, 0),
           });
+        }
+        continue;
+      }
+
+      if (element.kind === "qr") {
+        if (!item.productUrl) continue;
+        const boxPt = Math.min(mmToPt(element.wMm), mmToPt(element.hMm));
+        const qr = qrGeometry(item.productUrl, boxPt, dpi);
+        if (!qr.fits) barcodeTooWide.push({ itemIndex: index, element: elementIndex });
+        const left = snapToDots(toX(element.xMm) + (mmToPt(element.wMm) - qr.sizePt) / 2, dpi);
+        const top = snapToDots(toY(element.yMm) - (mmToPt(element.hMm) - qr.sizePt) / 2, dpi);
+        for (const run of qr.runs) {
+          page.drawRectangle({ x: left + run.x, y: top - run.y - run.size, width: run.width, height: run.size, color: rgb(0, 0, 0) });
         }
         continue;
       }

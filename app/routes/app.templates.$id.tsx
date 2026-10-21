@@ -55,7 +55,7 @@ export const action = async ({ request, params }: ActionFunctionArgs) => {
     const { pdf, overflows, barcodeTooWide } = await renderLabels({
       format: template.format,
       layout,
-      items: [{ ...SAMPLE, title: SAMPLE.title!, price: "29.90", compareAtPrice: "39.90", barcode: "2000000001234" }],
+      items: [{ ...SAMPLE, title: SAMPLE.title!, price: "29.90", compareAtPrice: "39.90", barcode: "2000000001234", productUrl: "https://exemple.com/products/exemple" }],
       price: { currency: "EUR", locale: "fr-FR" },
       // Sur planche, l'aperçu montre la page entière
     });

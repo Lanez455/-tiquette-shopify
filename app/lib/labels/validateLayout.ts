@@ -28,6 +28,7 @@ export function validateLayout(input: unknown, widthMm: number, heightMm: number
     }
     const box = { xMm: e.xMm as number, yMm: e.yMm as number, wMm: e.wMm as number, hMm: e.hMm as number };
     if (e.kind === "barcode") return { kind: "barcode", ...box, showDigits: e.showDigits !== false };
+    if (e.kind === "qr") return { kind: "qr", ...box };
     if (!num(e.maxFontSize, 2, 72) || !num(e.minFontSize, 2, 72) || (e.minFontSize as number) > (e.maxFontSize as number)) {
       throw new LayoutError(`${where} : tailles de police invalides`);
     }

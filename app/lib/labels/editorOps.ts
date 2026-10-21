@@ -49,10 +49,16 @@ export function removeElement(layout: LabelTemplateLayout, index: number): Label
   return { elements: layout.elements.filter((_, i) => i !== index) };
 }
 
-export type NewElement = { kind: "field"; field: FieldKey } | { kind: "text"; text: string } | { kind: "barcode" };
+export type NewElement = { kind: "field"; field: FieldKey } | { kind: "text"; text: string } | { kind: "barcode" } | { kind: "qr" };
 
 // Nouvel élément au centre, à une taille raisonnable pour l'étiquette
 export function addElement(layout: LabelTemplateLayout, what: NewElement, bounds: Bounds): LabelTemplateLayout {
+  if (what.kind === "qr") {
+    // Carré, la moitié du petit côté
+    const side = snap(Math.max(MIN_SIZE_MM, Math.min(bounds.widthMm, bounds.heightMm) * 0.5));
+    const qr: LabelElement = { kind: "qr", xMm: snap((bounds.widthMm - side) / 2), yMm: snap((bounds.heightMm - side) / 2), wMm: side, hMm: side };
+    return { elements: [...layout.elements, qr] };
+  }
   const wMm = snap(Math.max(MIN_SIZE_MM, bounds.widthMm * (what.kind === "barcode" ? 0.8 : 0.5)));
   const hMm = snap(Math.max(MIN_SIZE_MM, bounds.heightMm * (what.kind === "barcode" ? 0.4 : 0.2)));
   const box = { xMm: snap((bounds.widthMm - wMm) / 2), yMm: snap((bounds.heightMm - hMm) / 2), wMm, hMm };
