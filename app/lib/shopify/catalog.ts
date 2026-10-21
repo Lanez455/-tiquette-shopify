@@ -37,7 +37,30 @@ export async function fetchCatalogBarcodes(gql: Gql): Promise<CatalogVariant[]> 
   return result;
 }
 
-const VARIANTS_FOR_LABELS = `#graphql
+// Ce que les modèles demandent en plus des champs de base. Les lister tous
+// (metafields(first: 25), collections(first: 25)) coûtait 83 points par
+// variante : Shopify refuse toute requête au-delà de 1 000 points.
+export interface LabelNeeds {
+  // « product.namespace.key » ou « variant.namespace.key »
+  metafields?: string[];
+  // Collections des règles automatiques : on demande seulement l'appartenance
+  collectionIds?: string[];
+}
+
+const METAFIELD_KEY = /^(product|variant)\.([\w-]+)\.([\w-]+)$/;
+
+// Coût Shopify : 1 point par objet. Une variante = variante + produit + un point par métachamp.
+const COST_BUDGET = 900;
+const MAX_NODES_PER_CALL = 250;
+
+function labelsQuery(metafields: string[], collectionIds: string[]): string {
+  const alias = (key: string, i: number) => {
+    const [, , namespace, name] = METAFIELD_KEY.exec(key)!;
+    return `m${i}: metafield(namespace: ${JSON.stringify(namespace)}, key: ${JSON.stringify(name)}) { value }`;
+  };
+  const on = (owner: string) => metafields.map((k, i) => (k.startsWith(`${owner}.`) ? alias(k, i) : "")).filter(Boolean).join("\n");
+  const inCollections = collectionIds.map((id, i) => `c${i}: inCollection(id: ${JSON.stringify(id)})`).join("\n");
+  return `#graphql
   query VariantsForLabels($ids: [ID!]!) {
     nodes(ids: $ids) {
       ... on ProductVariant {
@@ -48,25 +71,24 @@ const VARIANTS_FOR_LABELS = `#graphql
         price
         compareAtPrice
         inventoryQuantity
-        metafields(first: 25) { nodes { namespace key value } }
+        ${on("variant")}
         product {
           id
           title
           vendor
           productType
           onlineStoreUrl
-          collections(first: 25) { nodes { id } }
-          metafields(first: 25) { nodes { namespace key value } }
+          ${on("product")}
+          ${inCollections}
         }
       }
     }
   }`;
-
-interface MetafieldNodes {
-  nodes: { namespace: string; key: string; value: string }[];
 }
 
-interface VariantNode {
+type Aliased = Record<string, unknown>;
+
+interface VariantNode extends Aliased {
   id: string;
   title: string;
   sku: string | null;
@@ -74,16 +96,13 @@ interface VariantNode {
   price: string;
   compareAtPrice: string | null;
   inventoryQuantity: number | null;
-  metafields: MetafieldNodes;
-  product: {
+  product: Aliased & {
     id: string;
     title: string;
     vendor: string;
     productType: string;
     // Nul si le produit n'est pas publié sur la boutique en ligne
     onlineStoreUrl: string | null;
-    collections: { nodes: { id: string }[] };
-    metafields: MetafieldNodes;
   };
 }
 
@@ -94,25 +113,34 @@ export interface LabelVariant extends LabelItem {
   inventoryQuantity: number | null;
 }
 
-// Les métachamps de la variante priment sur ceux du produit
-function metafieldMap(product: MetafieldNodes, variant: MetafieldNodes): Record<string, string> {
-  const map: Record<string, string> = {};
-  for (const m of product.nodes) map[`product.${m.namespace}.${m.key}`] = m.value;
-  for (const m of variant.nodes) map[`variant.${m.namespace}.${m.key}`] = m.value;
-  return map;
+// Les métachamps des modèles, pour ne demander que ceux-là
+export function metafieldsUsed(layouts: { elements: { kind: string; field?: string }[] }[]): string[] {
+  const keys = new Set<string>();
+  for (const layout of layouts) {
+    for (const e of layout.elements) {
+      if (e.kind === "field" && e.field?.startsWith("metafield:")) keys.add(e.field.slice("metafield:".length));
+    }
+  }
+  return [...keys].filter((k) => METAFIELD_KEY.test(k)).sort();
 }
 
-const NODES_PER_CALL = 100;
-
-export async function fetchVariantsForLabels(gql: Gql, ids: string[]): Promise<LabelVariant[]> {
+export async function fetchVariantsForLabels(gql: Gql, ids: string[], needs: LabelNeeds = {}): Promise<LabelVariant[]> {
   const unique = [...new Set(ids)];
+  const metafields = [...new Set(needs.metafields ?? [])].filter((k) => METAFIELD_KEY.test(k));
+  const collectionIds = [...new Set(needs.collectionIds ?? [])];
+  const query = labelsQuery(metafields, collectionIds);
+  const perCall = Math.max(1, Math.min(MAX_NODES_PER_CALL, Math.floor(COST_BUDGET / (2 + metafields.length))));
   const byId = new Map<string, LabelVariant>();
-  for (let i = 0; i < unique.length; i += NODES_PER_CALL) {
-    const data = await gql<{ nodes: (VariantNode | null)[] }>(VARIANTS_FOR_LABELS, {
-      ids: unique.slice(i, i + NODES_PER_CALL),
-    });
+  for (let i = 0; i < unique.length; i += perCall) {
+    const data = await gql<{ nodes: (VariantNode | null)[] }>(query, { ids: unique.slice(i, i + perCall) });
     for (const v of data.nodes) {
       if (!v || !v.product) continue;
+      const values: Record<string, string> = {};
+      metafields.forEach((key, n) => {
+        const owner = key.startsWith("product.") ? v.product : v;
+        const value = (owner[`m${n}`] as { value: string } | null | undefined)?.value;
+        if (value != null) values[key] = value;
+      });
       byId.set(v.id, {
         variantId: v.id,
         productId: v.product.id,
@@ -124,9 +152,9 @@ export async function fetchVariantsForLabels(gql: Gql, ids: string[]): Promise<L
         compareAtPrice: v.compareAtPrice,
         vendor: v.product.vendor,
         productType: v.product.productType,
-        collectionIds: v.product.collections.nodes.map((c) => c.id),
+        collectionIds: collectionIds.filter((_, n) => v.product[`c${n}`] === true),
         inventoryQuantity: v.inventoryQuantity,
-        metafields: metafieldMap(v.product.metafields, v.metafields),
+        metafields: values,
         productUrl: v.product.onlineStoreUrl,
       });
     }
@@ -166,28 +194,56 @@ export async function writeBarcodes(gql: Gql, writes: BarcodeWrite[]): Promise<v
   }
 }
 
-const PRODUCT_VARIANT_IDS = `#graphql
-  query ProductVariantIds($ids: [ID!]!) {
+const NODE_TYPES = `#graphql
+  query NodeTypes($ids: [ID!]!) {
     nodes(ids: $ids) {
-      ... on Product { id variants(first: 250) { nodes { id } } }
+      __typename
+      ... on Product { id }
       ... on ProductVariant { id }
     }
   }`;
 
+// Les variantes de plusieurs produits, toutes pages comprises : un produit
+// peut dépasser 250 variantes, qu'un simple variants(first: 250) tronquerait
+const VARIANTS_OF_PRODUCTS = `#graphql
+  query VariantsOfProducts($query: String!, $after: String) {
+    productVariants(first: 250, after: $after, query: $query, sortKey: POSITION) {
+      nodes { id product { id } }
+      pageInfo { hasNextPage endCursor }
+    }
+  }`;
+
+const IDS_PER_CALL = 250;
+const PRODUCTS_PER_SEARCH = 50;
+
+async function variantsOfProducts(gql: Gql, productIds: string[]): Promise<Map<string, string[]>> {
+  const byProduct = new Map<string, string[]>(productIds.map((id) => [id, []]));
+  for (let i = 0; i < productIds.length; i += PRODUCTS_PER_SEARCH) {
+    const query = `product_ids:${productIds.slice(i, i + PRODUCTS_PER_SEARCH).map((id) => id.split("/").pop()).join(",")}`;
+    let after: string | null = null;
+    do {
+      const data: {
+        productVariants: { nodes: { id: string; product: { id: string } }[]; pageInfo: { hasNextPage: boolean; endCursor: string | null } };
+      } = await gql(VARIANTS_OF_PRODUCTS, { query, after });
+      for (const v of data.productVariants.nodes) byProduct.get(v.product.id)?.push(v.id);
+      after = data.productVariants.pageInfo.hasNextPage ? data.productVariants.pageInfo.endCursor : null;
+    } while (after);
+  }
+  return byProduct;
+}
+
 // Les extensions d'impression envoient des produits ou des variantes : tout devient variantes
 export async function expandToVariantIds(gql: Gql, ids: string[]): Promise<string[]> {
-  const out: string[] = [];
-  for (let i = 0; i < ids.length; i += NODES_PER_CALL) {
-    const data = await gql<{ nodes: ({ id: string; variants?: { nodes: { id: string }[] } } | null)[] }>(
-      PRODUCT_VARIANT_IDS,
-      { ids: ids.slice(i, i + NODES_PER_CALL) },
-    );
-    for (const node of data.nodes) {
-      if (!node) continue;
-      if (node.variants) out.push(...node.variants.nodes.map((v) => v.id));
-      else out.push(node.id);
-    }
+  const typed: { id: string; type: string }[] = [];
+  for (let i = 0; i < ids.length; i += IDS_PER_CALL) {
+    const data = await gql<{ nodes: ({ __typename: string; id?: string } | null)[] }>(NODE_TYPES, {
+      ids: ids.slice(i, i + IDS_PER_CALL),
+    });
+    for (const node of data.nodes) if (node?.id) typed.push({ id: node.id, type: node.__typename });
   }
+  const productIds = [...new Set(typed.filter((n) => n.type === "Product").map((n) => n.id))];
+  const variantsByProduct = productIds.length ? await variantsOfProducts(gql, productIds) : new Map<string, string[]>();
+  const out = typed.flatMap((n) => (n.type === "Product" ? variantsByProduct.get(n.id) ?? [] : n.type === "ProductVariant" ? [n.id] : []));
   return [...new Set(out)];
 }
 
@@ -223,26 +279,27 @@ export function productSearchQuery(filter: ProductFilter): string {
   return parts.join(" AND ");
 }
 
-const FILTERED_VARIANTS = `#graphql
-  query FilteredVariants($query: String!, $after: String) {
-    products(first: 100, after: $after, query: $query) {
-      nodes { variants(first: 100) { nodes { id } } }
+const FILTERED_PRODUCTS = `#graphql
+  query FilteredProducts($query: String!, $after: String) {
+    products(first: 250, after: $after, query: $query) {
+      nodes { id }
       pageInfo { hasNextPage endCursor }
     }
   }`;
 
 export const MAX_FILTERED_VARIANTS = 2000;
 
-// « Tout sélectionner » sur un filtre (F13), plafonné pour garder l'écran utilisable
+// « Tout sélectionner » sur un filtre (F13), plafonné pour garder l'écran utilisable.
+// Deux temps : les produits du filtre, puis leurs variantes (requêtes sous la limite de coût).
 export async function fetchVariantIdsByFilter(gql: Gql, filter: ProductFilter): Promise<{ ids: string[]; truncated: boolean }> {
   const query = productSearchQuery(filter);
   const ids: string[] = [];
   let after: string | null = null;
   do {
-    const data: {
-      products: { nodes: { variants: { nodes: { id: string }[] } }[]; pageInfo: { hasNextPage: boolean; endCursor: string | null } };
-    } = await gql(FILTERED_VARIANTS, { query, after });
-    for (const p of data.products.nodes) ids.push(...p.variants.nodes.map((v) => v.id));
+    const data: { products: { nodes: { id: string }[]; pageInfo: { hasNextPage: boolean; endCursor: string | null } } } =
+      await gql(FILTERED_PRODUCTS, { query, after });
+    const byProduct = await variantsOfProducts(gql, data.products.nodes.map((p) => p.id));
+    for (const variants of byProduct.values()) ids.push(...variants);
     if (ids.length >= MAX_FILTERED_VARIANTS) return { ids: ids.slice(0, MAX_FILTERED_VARIANTS), truncated: true };
     after = data.products.pageInfo.hasNextPage ? data.products.pageInfo.endCursor : null;
   } while (after);

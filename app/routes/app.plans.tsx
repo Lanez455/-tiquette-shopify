@@ -9,6 +9,8 @@ const isTest = () => process.env.BILLING_TEST !== "false";
 
 export const loader = async ({ request }: LoaderFunctionArgs) => {
   const { billing, session } = await authenticate.admin(request);
+  // Retour de la page de validation Shopify : la formule en cache est périmée
+  forgetPlan(session.shop);
   const { appSubscriptions } = await billing.check({ plans: [PRO, MAGASIN], isTest: isTest() });
   const plan = planFromSubscriptions(appSubscriptions.map((s) => ({ name: s.name, status: s.status })));
   return { plan, used: await labelsUsedThisMonth(session.shop) };

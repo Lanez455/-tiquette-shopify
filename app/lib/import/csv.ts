@@ -74,7 +74,7 @@ export function detectDelimiter(first: string): string {
 const normalizeHeader = (h: string) => h.toLowerCase().replace(/\s+/g, " ").trim();
 
 export function parseLabelCsv(input: string): CsvResult {
-  const text = input.replace(/^﻿/, "");
+  const text = input.replace(/^\uFEFF/, "");
   const records = splitRecords(text);
   const firstIndex = records.findIndex((r) => r.trim() !== "");
   if (firstIndex < 0) return { rows: [], errors: [{ line: 1, message: "Fichier vide" }] };

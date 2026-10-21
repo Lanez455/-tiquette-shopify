@@ -16,6 +16,7 @@ const API = "/api/print-link";
 
 function PrintAction() {
   const ids = shopify.data.selected.map((s) => s.id);
+  const selection = ids.join(",");
   const [options, setOptions] = useState<Options | null>(null);
   const [templateId, setTemplateId] = useState("");
   const [quantity, setQuantity] = useState("1");
@@ -39,13 +40,13 @@ function PrintAction() {
     setSrc(undefined);
     setError("");
     const timer = setTimeout(() => {
-      fetch(API, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ ids, templateId, quantity: q }) })
+      fetch(API, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ ids: selection ? selection.split(",") : [], templateId, quantity: q }) })
         .then((r) => r.json() as Promise<{ url?: string; error?: string }>)
         .then((res) => (res.url ? setSrc(res.url) : setError(res.error ?? "Erreur")))
         .catch(() => setError("Impossible de préparer les étiquettes"));
     }, 300);
     return () => clearTimeout(timer);
-  }, [templateId, quantity, ids.join(",")]);
+  }, [templateId, quantity, selection]);
 
   return (
     <s-admin-print-action src={src}>

@@ -1,5 +1,7 @@
 // Fausse boutique Shopify en mémoire pour les tests. Elle répond aux opérations
 // GraphQL de l'app d'après leur nom, avec la pagination et les erreurs de l'API.
+import { Kind, parse, type FieldNode, type SelectionSetNode } from "graphql";
+import { estimateQueryCost, MAX_QUERY_COST } from "./queryCost";
 import type { Gql } from "~/lib/shopify/graphql";
 
 export interface FakeVariant {
@@ -22,7 +24,45 @@ export interface FakeProduct {
   collectionIds: string[];
   metafields?: { namespace: string; key: string; value: string }[];
   onlineStoreUrl?: string | null;
+  // AAAA-MM-JJ, pour le filtre « ajoutés depuis »
+  createdAt?: string;
 }
+
+// Champs aliasés d'une sélection : { alias → { champ, arguments } }
+function aliasedFields(set: SelectionSetNode | undefined): Map<string, { name: string; args: Record<string, string> }> {
+  const out = new Map<string, { name: string; args: Record<string, string> }>();
+  for (const sel of set?.selections ?? []) {
+    if (sel.kind === Kind.INLINE_FRAGMENT) for (const [k, v] of aliasedFields(sel.selectionSet)) out.set(k, v);
+    if (sel.kind !== Kind.FIELD || !sel.alias) continue;
+    const args: Record<string, string> = {};
+    for (const a of sel.arguments ?? []) if (a.value.kind === Kind.STRING) args[a.name.value] = a.value.value;
+    out.set(sel.alias.value, { name: sel.name.value, args });
+  }
+  return out;
+}
+
+function findField(set: SelectionSetNode | undefined, name: string): FieldNode | undefined {
+  for (const sel of set?.selections ?? []) {
+    if (sel.kind === Kind.FIELD && sel.name.value === name) return sel;
+    if (sel.kind === Kind.INLINE_FRAGMENT) {
+      const found = findField(sel.selectionSet, name);
+      if (found) return found;
+    }
+  }
+  return undefined;
+}
+
+// Recherche Shopify « champ:valeur AND champ:"valeur" »
+function searchTerms(query: string): Record<string, string> {
+  const terms: Record<string, string> = {};
+  for (const m of query.matchAll(/(\w+):(>=)?("(?:[^"\\]|\\.)*"|[^\s]+)/g)) {
+    const raw = m[3]!;
+    terms[m[1]!] = raw.startsWith('"') ? raw.slice(1, -1).replace(/\\(.)/g, "$1") : raw;
+  }
+  return terms;
+}
+
+const lastSegment = (id: string) => id.split("/").pop()!;
 
 export class FakeShop {
   products = new Map<string, FakeProduct>();
@@ -44,11 +84,14 @@ export class FakeShop {
   gql: Gql = async <T>(query: string, variables: Record<string, unknown> = {}) => {
     const operation = /(?:query|mutation)\s+(\w+)/.exec(query)?.[1] ?? "anonymous";
     this.calls.push({ operation, variables });
+    // Comme Shopify : une requête trop coûteuse est refusée en entier
+    const cost = estimateQueryCost(query, variables);
+    if (cost > MAX_QUERY_COST) throw new Error(`Query cost is ${cost}, which exceeds the single query max cost limit (${MAX_QUERY_COST}) : ${operation}`);
     const failure = this.failOn?.(operation, variables);
     if (failure) throw new Error(failure);
-    const handler = (this as unknown as Record<string, (v: Record<string, unknown>) => unknown>)[`op${operation}`];
+    const handler = (this as unknown as Record<string, (v: Record<string, unknown>, q: string) => unknown>)[`op${operation}`];
     if (!handler) throw new Error(`Opération non simulée : ${operation}`);
-    return handler.call(this, variables) as T;
+    return handler.call(this, variables, query) as T;
   };
 
   opVariantBarcodes({ after }: Record<string, unknown>) {
@@ -63,35 +106,84 @@ export class FakeShop {
     };
   }
 
-  opVariantsForLabels({ ids }: Record<string, unknown>) {
+  // Répond aux alias demandés : mN: metafield(namespace, key) et cN: inCollection(id)
+  opVariantsForLabels({ ids }: Record<string, unknown>, query: string) {
     if ((ids as string[]).length > 250) throw new Error("Trop d'identifiants dans un seul appel");
+    const doc = parse(query);
+    const root = doc.definitions[0]!.kind === Kind.OPERATION_DEFINITION ? doc.definitions[0].selectionSet : undefined;
+    const variantSet = findField(root, "nodes")?.selectionSet;
+    const productSet = findField(variantSet, "product")?.selectionSet;
+    const resolve = (set: SelectionSetNode | undefined, owner: { metafields?: FakeVariant["metafields"] }, collectionIds: string[]) => {
+      const out: Record<string, unknown> = {};
+      for (const [alias, f] of aliasedFields(set)) {
+        if (f.name === "metafield") {
+          const m = owner.metafields?.find((x) => x.namespace === f.args.namespace && x.key === f.args.key);
+          out[alias] = m ? { value: m.value } : null;
+        } else if (f.name === "inCollection") {
+          out[alias] = collectionIds.includes(f.args.id!);
+        }
+      }
+      return out;
+    };
     return {
       nodes: (ids as string[]).map((id) => {
         const v = this.variants.get(id);
         if (!v) return null;
         const p = this.products.get(v.productId)!;
+        const { metafields: _m, ...fields } = v;
         return {
-          ...v,
-          metafields: { nodes: v.metafields ?? [] },
+          ...fields,
+          ...resolve(variantSet, v, []),
           product: {
             id: p.id, title: p.title, vendor: p.vendor, productType: p.productType,
             onlineStoreUrl: p.onlineStoreUrl ?? null,
-            collections: { nodes: p.collectionIds.map((id) => ({ id })) },
-            metafields: { nodes: p.metafields ?? [] },
+            ...resolve(productSet, p, p.collectionIds),
           },
         };
       }),
     };
   }
 
-  opProductVariantIds({ ids }: Record<string, unknown>) {
+  opNodeTypes({ ids }: Record<string, unknown>) {
+    if ((ids as string[]).length > 250) throw new Error("Trop d'identifiants dans un seul appel");
     return {
       nodes: (ids as string[]).map((id) => {
-        if (this.products.has(id)) {
-          return { id, variants: { nodes: [...this.variants.values()].filter((v) => v.productId === id).map((v) => ({ id: v.id })) } };
-        }
-        return this.variants.has(id) ? { id } : null;
+        if (this.products.has(id)) return { __typename: "Product", id };
+        return this.variants.has(id) ? { __typename: "ProductVariant", id } : null;
       }),
+    };
+  }
+
+  // productVariants(query: "product_ids:1,2") avec pagination, ordre des produits puis des variantes
+  opVariantsOfProducts({ query, after }: Record<string, unknown>) {
+    const wanted = (searchTerms(String(query)).product_ids ?? "").split(",");
+    const all = [...this.variants.values()].filter((v) => wanted.includes(lastSegment(v.productId)));
+    const start = after ? Number(after) : 0;
+    const page = all.slice(start, start + 250);
+    return {
+      productVariants: {
+        nodes: page.map((v) => ({ id: v.id, product: { id: v.productId } })),
+        pageInfo: { hasNextPage: start + 250 < all.length, endCursor: String(start + 250) },
+      },
+    };
+  }
+
+  opFilteredProducts({ query, after }: Record<string, unknown>) {
+    const t = searchTerms(String(query));
+    const all = [...this.products.values()].filter(
+      (p) =>
+        (!t.collection_id || p.collectionIds.some((c) => lastSegment(c) === t.collection_id)) &&
+        (!t.vendor || p.vendor.toLowerCase() === t.vendor.toLowerCase()) &&
+        (!t.product_type || p.productType.toLowerCase() === t.product_type.toLowerCase()) &&
+        (!t.created_at || (p.createdAt ?? "") >= t.created_at),
+    );
+    const start = after ? Number(after) : 0;
+    const page = all.slice(start, start + 250);
+    return {
+      products: {
+        nodes: page.map((p) => ({ id: p.id })),
+        pageInfo: { hasNextPage: start + 250 < all.length, endCursor: String(start + 250) },
+      },
     };
   }
 

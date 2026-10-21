@@ -12,8 +12,9 @@
     "setup": "prisma generate && prisma migrate deploy",
     "typecheck": "react-router typegen && tsc --noEmit && tsc -p extensions/tsconfig.json",
     "test": "vitest run",
-    "verify": "npm run typecheck && npm test && npm run build",
-    "simulate": "vite-node --config vitest.config.ts scripts/simulate-print.ts"
+    "verify": "npm run typecheck && npm run lint && npm test && npm run build",
+    "simulate": "vite-node --config vitest.config.ts scripts/simulate-print.ts",
+    "lint": "eslint ."
   },
   "engines": {
     "node": ">=20.19"
@@ -43,6 +44,7 @@
     "react-router": "^7.18.0"
   },
   "devDependencies": {
+    "@eslint/js": "^9.39.1",
     "@react-router/dev": "^7.18.0",
     "@shopify/app-bridge-types": "^0.7.0",
     "@shopify/polaris-types": "^2.0.0",
@@ -51,7 +53,11 @@
     "@types/react": "^18.3.0",
     "@types/react-dom": "^18.3.0",
     "@zxing/library": "^0.21.3",
+    "eslint": "^9.39.1",
+    "eslint-plugin-react-hooks": "^5.2.0",
+    "graphql": "^16.11.0",
     "typescript": "^5.8.0",
+    "typescript-eslint": "^8.46.2",
     "vite": "^6.4.0",
     "vite-tsconfig-paths": "^5.1.0",
     "vitest": "^3.2.0"

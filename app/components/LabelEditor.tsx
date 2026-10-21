@@ -1,4 +1,4 @@
-import { useRef, useState, type PointerEvent as ReactPointerEvent } from "react";
+import { useEffect, useRef, useState, type PointerEvent as ReactPointerEvent } from "react";
 import {
   addElement,
   FIELD_LABELS,
@@ -15,6 +15,8 @@ import type { FieldKey, LabelElement, LabelTemplateLayout } from "../lib/labels/
 // chaque élément se déplace à la souris et se redimensionne par son coin.
 
 const PT_TO_MM = 25.4 / 72;
+// Même règle que la validation du modèle côté serveur
+const METAFIELD = /^(product|variant)\.[\w-]+\.[\w-]+$/;
 
 function sampleText(e: LabelElement): string {
   if (e.kind === "text") return e.text;
@@ -35,8 +37,18 @@ export function LabelEditor({
   const [selected, setSelected] = useState<number | null>(null);
   const [metafield, setMetafield] = useState("product.custom.");
   const drag = useRef<{ index: number; mode: "move" | "resize"; startX: number; startY: number; origin: LabelElement } | null>(null);
-  // Pixels par mm : l'étiquette tient dans 560 px de large
-  const scale = Math.min(560 / bounds.widthMm, 320 / bounds.heightMm);
+  // Pixels par mm : l'étiquette tient dans la largeur disponible (560 px au plus),
+  // pour rester entière sur un téléphone
+  const frame = useRef<HTMLDivElement>(null);
+  const [available, setAvailable] = useState(560);
+  useEffect(() => {
+    const el = frame.current;
+    if (!el || typeof ResizeObserver === "undefined") return;
+    const observer = new ResizeObserver(([entry]) => entry && setAvailable(Math.max(120, Math.min(560, entry.contentRect.width))));
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, []);
+  const scale = Math.min(available / bounds.widthMm, 320 / bounds.heightMm);
 
   function onPointerDown(event: ReactPointerEvent, index: number, mode: "move" | "resize") {
     event.stopPropagation();
@@ -68,6 +80,7 @@ export function LabelEditor({
 
   return (
     <s-stack gap="base">
+      <div ref={frame} style={{ width: "100%", maxWidth: 560 }}>
       <div
         onPointerMove={onPointerMove}
         onPointerUp={() => (drag.current = null)}
@@ -122,6 +135,7 @@ export function LabelEditor({
           );
         })}
       </div>
+      </div>
 
       <s-stack direction="inline" gap="small">
         <s-select label="Ajouter un champ" onChange={(e) => e.currentTarget.value && add({ kind: "field", field: e.currentTarget.value as FieldKey })}>
@@ -134,7 +148,9 @@ export function LabelEditor({
         <s-button onClick={() => add({ kind: "qr" })}>QR code (fiche produit)</s-button>
         <s-button onClick={() => add({ kind: "text", text: "Texte" })}>Texte libre</s-button>
         <s-text-field label="Métachamp (product.ns.clé ou variant.ns.clé)" value={metafield} onChange={(e) => setMetafield(e.currentTarget.value)}></s-text-field>
-        <s-button onClick={() => add({ kind: "field", field: `metafield:${metafield}` as FieldKey })}>Ajouter le métachamp</s-button>
+        <s-button disabled={!METAFIELD.test(metafield.trim())} onClick={() => add({ kind: "field", field: `metafield:${metafield.trim()}` as FieldKey })}>
+          Ajouter le métachamp
+        </s-button>
       </s-stack>
 
       {current && selected !== null && (

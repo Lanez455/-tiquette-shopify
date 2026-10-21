@@ -30,7 +30,7 @@ const GTIN_HEADERS = new Set(["gtin", "ean", "upc", "code-barres", "code barres"
 const KEY_HEADERS = new Set(["sku", "référence", "reference", "variant id", "id variante", "variant sku"]);
 
 export function parseGs1Input(input: string): { rows: Gs1Row[]; errors: { line: number; message: string }[] } {
-  const records = splitRecords(input.replace(/^﻿/, ""));
+  const records = splitRecords(input.replace(/^\uFEFF/, ""));
   const first = records.findIndex((r) => r.trim() !== "");
   if (first < 0) return { rows: [], errors: [{ line: 1, message: "Rien à importer" }] };
   const delimiter = detectDelimiter(records[first]!);

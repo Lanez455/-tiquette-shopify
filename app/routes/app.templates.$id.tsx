@@ -81,6 +81,8 @@ export default function TemplateEditor() {
   const [layout, setLayout] = useState(data.layout);
   const [collections, setCollections] = useState<string[]>(data.collectionIds);
   const [name, setName] = useState(data.name);
+  // La suppression est définitive : elle se confirme en deux temps
+  const [confirmDelete, setConfirmDelete] = useState(false);
   const submit = useSubmit();
   const send = (intent: "save" | "preview" | "delete") =>
     submit({ intent, name, layout: JSON.stringify(layout), collectionIds: collections.join(",") }, { method: "post" });
@@ -120,8 +122,19 @@ export default function TemplateEditor() {
           <s-stack direction="inline" gap="base">
             <s-button variant="primary" disabled={busy} onClick={() => send("save")}>Enregistrer</s-button>
             <s-button disabled={busy} onClick={() => send("preview")}>Aperçu PDF</s-button>
-            <s-button tone="critical" disabled={busy} onClick={() => send("delete")}>Supprimer</s-button>
+            <s-button tone="critical" disabled={busy || confirmDelete} onClick={() => setConfirmDelete(true)}>Supprimer</s-button>
           </s-stack>
+          {confirmDelete && (
+            <s-banner tone="critical" heading={`Supprimer « ${data.name} » ?`}>
+              <s-paragraph>
+                Le modèle et ses règles de collection seront effacés. Les réimpressions qui l'utilisaient ne fonctionneront plus.
+              </s-paragraph>
+              <s-stack direction="inline" gap="base">
+                <s-button tone="critical" variant="primary" disabled={busy} onClick={() => send("delete")}>Supprimer définitivement</s-button>
+                <s-button disabled={busy} onClick={() => setConfirmDelete(false)}>Annuler</s-button>
+              </s-stack>
+            </s-banner>
+          )}
           {result && "pdfBase64" in result && result.pdfBase64 && (
             <iframe title="Aperçu" src={pdfUrl(result.pdfBase64)} style={{ width: "100%", height: 320, border: "1px solid #ddd" }} />
           )}

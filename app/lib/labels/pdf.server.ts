@@ -7,7 +7,7 @@ import { fitText } from "./fitText";
 import type { LabelFormat } from "./formats";
 import { formatPrice, type PriceOptions } from "./price";
 import { layoutSlots, type StartCell } from "./sheet";
-import type { FieldKey, LabelElement, LabelItem, LabelTemplateLayout } from "./template";
+import type { FieldKey, LabelItem, LabelTemplateLayout } from "./template";
 import { mmToPt } from "./units";
 
 export interface RenderOptions {

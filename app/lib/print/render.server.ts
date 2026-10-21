@@ -2,9 +2,9 @@ import type { ResolvedTemplate } from "../labels/templates.server";
 import { renderLabels } from "../labels/pdf.server";
 import type { PriceOptions } from "../labels/price";
 import type { StartCell } from "../labels/sheet";
-import { fetchVariantsForLabels, type LabelVariant } from "../shopify/catalog";
+import { fetchVariantsForLabels, metafieldsUsed, type LabelVariant } from "../shopify/catalog";
 import type { Gql } from "../shopify/graphql";
-import { AUTO_TEMPLATE, expandLines, groupLinesByTemplate, PrintJobError, type PrintLine } from "./job";
+import { AUTO_TEMPLATE, expandLines, groupLinesByTemplate, MAX_PER_JOB, PrintJobError, type PrintLine } from "./job";
 
 export interface PrintSettings {
   offsetXmm: number;
@@ -36,14 +36,23 @@ export async function renderPrintGroups(args: {
   preview?: boolean;
 }): Promise<{ groups: PrintGroup[]; variants: LabelVariant[] }> {
   const { gql, templates, settings } = args;
-  const lines = args.preview ? args.lines.filter((l) => l.quantity > 0).slice(0, 1).map((l) => ({ ...l, quantity: 1 })) : args.lines;
+  // Les lignes à 0 ne sont pas lues chez Shopify ; les quantités invalides sont refusées plus loin
+  const positive = args.lines.filter((l) => l.quantity !== 0);
+  const lines = args.preview ? positive.filter((l) => l.quantity > 0).slice(0, 1).map((l) => ({ ...l, quantity: 1 })) : positive;
   if (!lines.some((l) => l.quantity > 0)) throw new PrintJobError("Aucune étiquette à imprimer : toutes les quantités sont à 0.");
+  if (lines.length > MAX_PER_JOB) throw new PrintJobError(`${MAX_PER_JOB} étiquettes au maximum par impression`);
 
-  const variants = await fetchVariantsForLabels(gql, lines.map((l) => l.variantId));
   const byId = new Map(templates.map((t) => [t.id, t]));
-  const rules = templates.filter((t) => t.collectionIds.length).map((t) => ({ templateId: t.id, collectionIds: t.collectionIds }));
+  const auto = args.templateId === AUTO_TEMPLATE;
+  const rules = auto ? templates.filter((t) => t.collectionIds.length).map((t) => ({ templateId: t.id, collectionIds: t.collectionIds })) : [];
+  // On ne demande à Shopify que les métachamps et collections utiles à cette impression
+  const inPlay = auto ? [args.fallbackTemplateId, ...rules.map((r) => r.templateId)] : [args.templateId];
+  const variants = await fetchVariantsForLabels(gql, lines.map((l) => l.variantId), {
+    metafields: metafieldsUsed(inPlay.flatMap((id) => byId.get(id)?.layout ?? [])),
+    collectionIds: rules.flatMap((r) => r.collectionIds),
+  });
   const grouped =
-    args.templateId === AUTO_TEMPLATE
+    auto
       ? groupLinesByTemplate(lines, variants, rules, args.fallbackTemplateId)
       : new Map([[args.templateId, lines]]);
 

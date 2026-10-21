@@ -14,6 +14,8 @@ export function pdfUrl(base64: string): string {
   return URL.createObjectURL(new Blob([bytes], { type: "application/pdf" }));
 }
 
+// Résout dès que la fenêtre d'impression est ouverte : avec plusieurs modèles,
+// les PDF s'enchaînent sans attendre. Le cadre est retiré une minute plus tard.
 export function printPdfUrl(url: string): Promise<void> {
   return new Promise((resolve) => {
     const frame = document.createElement("iframe");
@@ -23,24 +25,38 @@ export function printPdfUrl(url: string): Promise<void> {
     frame.style.border = "0";
     frame.src = url;
     frame.onload = () => {
-      frame.contentWindow?.focus();
-      frame.contentWindow?.print();
-      // Laisse la fenêtre d'impression lire le document avant de le retirer
-      setTimeout(() => {
-        frame.remove();
-        URL.revokeObjectURL(url);
+      try {
+        frame.contentWindow?.focus();
+        frame.contentWindow?.print();
+      } finally {
         resolve();
-      }, 60_000);
+        // Laisse la fenêtre d'impression lire le document avant de le retirer
+        setTimeout(() => {
+          frame.remove();
+          URL.revokeObjectURL(url);
+        }, 60_000);
+      }
     };
     document.body.appendChild(frame);
   });
 }
 
-export async function requestPrint(body: unknown): Promise<PrintResponse> {
-  const response = await fetch("/app/print/pdf", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(body),
-  });
-  return (await response.json()) as PrintResponse;
+// Ne lève jamais : une panne réseau ou une page d'erreur devient un message,
+// sinon le bouton Imprimer resterait bloqué en attente
+export async function requestPrint(body: unknown, fetchImpl: typeof fetch = fetch): Promise<PrintResponse> {
+  let response: Response;
+  try {
+    response = await fetchImpl("/app/print/pdf", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(body),
+    });
+  } catch {
+    return { error: "Connexion perdue : réessayez." };
+  }
+  try {
+    return (await response.json()) as PrintResponse;
+  } catch {
+    return { error: `Erreur du serveur (${response.status}) : réessayez dans un instant.` };
+  }
 }
