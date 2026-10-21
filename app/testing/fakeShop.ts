@@ -93,6 +93,49 @@ export class FakeShop {
     };
   }
 
+  // Recherche « barcode:"x" OR sku:"y" », insensible à la casse comme Shopify
+  opVariantLookup({ query }: Record<string, unknown>) {
+    const terms = [...String(query).matchAll(/(barcode|sku):"((?:[^"\\]|\\.)*)"/g)].map((m) => ({
+      field: m[1] as "barcode" | "sku",
+      value: m[2]!.replace(/\\(.)/g, "$1").toLowerCase(),
+    }));
+    const nodes = [...this.variants.entries()]
+      .filter(([, v]) => terms.some((t) => (v[t.field] ?? "").toLowerCase() === t.value))
+      .map(([id, v]) => ({ id, sku: v.sku, barcode: v.barcode }));
+    return { productVariants: { nodes: nodes.slice(0, 250) } };
+  }
+
+  // Bons de commande et transferts : { id → nom, lignes }
+  inventoryDocs = new Map<string, { name: string; status: string; dateCreated: string; lines: { variantId: string | null; quantity: number }[] }>();
+
+  private docPage(id: unknown, after: unknown) {
+    const doc = this.inventoryDocs.get(String(id));
+    if (!doc) return null;
+    const start = after ? Number(after) : 0;
+    const page = doc.lines.slice(start, start + 250);
+    return {
+      name: doc.name,
+      lineItems: {
+        nodes: page.map((l) => ({ totalQuantity: l.quantity, inventoryItem: l.variantId ? { variant: { id: l.variantId } } : { variant: null } })),
+        pageInfo: { hasNextPage: start + 250 < doc.lines.length, endCursor: String(start + 250) },
+      },
+    };
+  }
+
+  opPurchaseOrderLines({ id, after }: Record<string, unknown>) {
+    return { inventoryPurchaseOrder: String(id).includes("InventoryPurchaseOrder") ? this.docPage(id, after) : null };
+  }
+
+  opTransferLines({ id, after }: Record<string, unknown>) {
+    return { inventoryTransfer: String(id).includes("InventoryTransfer") ? this.docPage(id, after) : null };
+  }
+
+  opRecentInventoryDocs() {
+    const nodes = (kind: string) =>
+      [...this.inventoryDocs].filter(([id]) => id.includes(kind)).map(([id, d]) => ({ id, name: d.name, status: d.status, dateCreated: d.dateCreated }));
+    return { inventoryPurchaseOrders: { nodes: nodes("InventoryPurchaseOrder/") }, inventoryTransfers: { nodes: nodes("InventoryTransfer/") } };
+  }
+
   opShopFormat() {
     return { shop: { currencyCode: "EUR" }, shopLocales: [{ locale: "fr", primary: true }] };
   }

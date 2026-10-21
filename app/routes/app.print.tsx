@@ -8,6 +8,9 @@ import { pdfUrl, printPdfUrl, requestPrint } from "../lib/print/client";
 import { getSettings } from "../lib/settings.server";
 import { expandToVariantIds, fetchVariantIdsByFilter, fetchVariantsForLabels } from "../lib/shopify/catalog";
 import { gqlFromAdmin, type Gql } from "../lib/shopify/graphql";
+import { docKind, inventoryDocLines, listInventoryDocs, type InventoryDoc } from "../lib/shopify/inventoryDocs";
+import { parseLabelCsv } from "../lib/import/csv";
+import { matchCsvRows } from "../lib/import/match";
 
 interface Line {
   variantId: string;
@@ -41,7 +44,10 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
   const url = new URL(request.url);
   const ids = (url.searchParams.get("ids") ?? "").split(",").filter((id) => id.startsWith("gid://shopify/"));
   const templates = await listTemplates(session.shop);
+  // Bons de commande et transferts récents (F14) ; absents si l'accès n'est pas accordé
+  const docs: InventoryDoc[] = await listInventoryDocs(gqlFromAdmin(admin)).catch(() => []);
   return {
+    docs,
     lines: ids.length ? await linesFor(gqlFromAdmin(admin), ids.slice(0, 250), asSetting(settings.defaultQuantity)) : [],
     templates: templates.map((t) => ({ id: t.id, name: t.name, sheet: t.format.kind === "sheet", hasRules: t.collectionIds.length > 0 })),
     defaultTemplateId: settings.defaultTemplateId ?? "builtin:dymo-30336",
@@ -49,12 +55,48 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
   };
 };
 
-// Ajout à la file : sélection du sélecteur Shopify ou filtre (F13)
-export const action = async ({ request }: ActionFunctionArgs) => {
+interface AddResult {
+  lines: Line[];
+  truncated?: boolean;
+  source?: string;
+  notice?: string;
+  problems?: { line: number; key: string; message: string }[];
+}
+
+// Ajout à la file : sélection, filtre (F13), bon de commande, transfert ou CSV (F14)
+export const action = async ({ request }: ActionFunctionArgs): Promise<AddResult> => {
   const { admin, session } = await authenticate.admin(request);
   const gql = gqlFromAdmin(admin);
   const settings = await getSettings(session.shop);
   const form = await request.formData();
+  const intent = form.get("intent");
+
+  if (intent === "document") {
+    const id = String(form.get("docId") ?? "");
+    const kind = docKind(id);
+    if (!kind) return { lines: [], notice: "Choisissez un bon de commande ou un transfert." };
+    const doc = await inventoryDocLines(gql, id);
+    const quantities = new Map(doc.lines.map((l) => [l.variantId, l.quantity]));
+    return {
+      lines: await linesFor(gql, doc.lines.map((l) => l.variantId), "zero", quantities),
+      source: kind,
+      notice: `${doc.name} : ${doc.lines.length} articles ajoutés${doc.skipped ? `, ${doc.skipped} article(s) supprimé(s) ignoré(s)` : ""}.`,
+    };
+  }
+
+  if (intent === "csv") {
+    const parsed = parseLabelCsv(String(form.get("csv") ?? ""));
+    const matched = await matchCsvRows(gql, parsed.rows);
+    const quantities = new Map(matched.lines.map((l) => [l.variantId, l.quantity]));
+    const problems = [...parsed.errors.map((e) => ({ ...e, key: "" })), ...matched.problems].sort((a, b) => a.line - b.line);
+    return {
+      lines: matched.lines.length ? await linesFor(gql, matched.lines.map((l) => l.variantId), "zero", quantities) : [],
+      source: "csv",
+      notice: `${matched.lines.length} articles trouvés dans le fichier.`,
+      problems,
+    };
+  }
+
   let ids = String(form.get("ids") ?? "").split(",").filter(Boolean);
   let truncated = false;
   if (form.get("intent") === "filter") {
@@ -78,18 +120,38 @@ export default function Print() {
   const [templateId, setTemplateId] = useState(data.templates.some((t) => t.hasRules) ? AUTO_TEMPLATE : data.defaultTemplateId);
   const [start, setStart] = useState({ row: 1, column: 1 });
   const [busy, setBusy] = useState(false);
+  const [source, setSource] = useState(data.source);
+  const [docId, setDocId] = useState("");
   const [message, setMessage] = useState<{ tone: "success" | "critical" | "warning"; text: string } | null>(null);
   const [preview, setPreview] = useState<string | null>(null);
 
-  // Ajoute les lignes reçues sans doublon
+  // Ajoute les lignes reçues ; un article déjà présent prend la quantité du document
   useEffect(() => {
-    if (!fetcher.data) return;
+    const result = fetcher.data;
+    if (!result) return;
     setLines((current) => {
+      const incoming = new Map(result.lines.map((l) => [l.variantId, l]));
+      const kept = current.map((l) => (result.source && incoming.has(l.variantId) ? { ...l, quantity: incoming.get(l.variantId)!.quantity } : l));
       const known = new Set(current.map((l) => l.variantId));
-      return [...current, ...fetcher.data!.lines.filter((l) => !known.has(l.variantId))];
+      return [...kept, ...result.lines.filter((l) => !known.has(l.variantId))];
     });
-    if (fetcher.data.truncated) setMessage({ tone: "warning", text: "Seules les 2 000 premières variantes ont été ajoutées." });
+    if (result.source) setSource(result.source);
+    if (result.truncated) setMessage({ tone: "warning", text: "Seules les 2 000 premières variantes ont été ajoutées." });
+    else if (result.notice) {
+      const problems = result.problems ?? [];
+      const detail = problems.slice(0, 8).map((p) => `ligne ${p.line}${p.key ? ` (${p.key})` : ""} : ${p.message}`).join(" ; ");
+      setMessage({
+        tone: problems.length ? "warning" : "success",
+        text: `${result.notice}${problems.length ? ` ${problems.length} ligne(s) à revoir : ${detail}${problems.length > 8 ? " ; …" : ""}` : ""}`,
+      });
+    }
   }, [fetcher.data]);
+
+  async function importCsv(file: File | undefined) {
+    if (!file) return;
+    if (file.size > 2_000_000) return setMessage({ tone: "critical", text: "Fichier trop lourd (2 Mo au maximum)." });
+    fetcher.submit({ intent: "csv", csv: await file.text() }, { method: "post" });
+  }
 
   const total = useMemo(() => lines.reduce((sum, l) => sum + l.quantity, 0), [lines]);
   const isSheet = data.templates.find((t) => t.id === templateId)?.sheet ?? false;
@@ -112,7 +174,7 @@ export default function Print() {
     lines: lines.map((l) => ({ variantId: l.variantId, quantity: l.quantity })),
     templateId,
     start: isSheet ? start : undefined,
-    source: data.source,
+    source,
     preview: previewOnly,
   });
 
@@ -138,6 +200,7 @@ export default function Print() {
     });
     // La file se vide après chaque impression (F16) ; elle reste dans l'historique
     setLines([]);
+    setSource("product");
     if (params.has("ids")) setParams({});
   }
 
@@ -164,8 +227,30 @@ export default function Print() {
           </s-stack>
         </fetcher.Form>
 
+        <s-stack direction="inline" gap="base">
+          {data.docs.length > 0 && (
+            <>
+              <s-select label="Bon de commande ou transfert" value={docId} onChange={(e) => setDocId(e.currentTarget.value)}>
+                <s-option value="">Choisir…</s-option>
+                {data.docs.map((d) => (
+                  <s-option key={d.id} value={d.id}>
+                    {`${d.kind === "purchase_order" ? "Bon de commande" : "Transfert"} ${d.name}${d.dateCreated ? ` · ${d.dateCreated.slice(0, 10)}` : ""}`}
+                  </s-option>
+                ))}
+              </s-select>
+              <s-button disabled={!docId} onClick={() => fetcher.submit({ intent: "document", docId }, { method: "post" })}>
+                Ajouter ses articles
+              </s-button>
+            </>
+          )}
+          <label>
+            Importer un CSV (code-barres ou SKU, quantité){" "}
+            <input type="file" accept=".csv,.txt,text/csv" onChange={(e) => importCsv(e.currentTarget.files?.[0])} />
+          </label>
+        </s-stack>
+
         {lines.length === 0 ? (
-          <s-paragraph>Aucun article. Ajoutez des produits ou ouvrez cet écran depuis un bon de commande.</s-paragraph>
+          <s-paragraph>Aucun article. Ajoutez des produits, un bon de commande, un transfert ou un fichier CSV.</s-paragraph>
         ) : (
           <s-table>
             <s-table-header-row>

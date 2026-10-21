@@ -22,7 +22,7 @@ Critères de validation : voir docs/SPEC.md. « Cœur » = la logique est écrit
 
 ## Flux d'impression
 - [ ] F13 Quantité par défaut et sélection
-- [ ] F14 Bons de commande, transferts, CSV
+- [x] F14 Bons de commande, transferts, CSV (champs de l'API vérifiés sur la référence 2026-10)
 - [x] F15 Extensions d'impression et tuile de caisse (à essayer sur une boutique de test : adresse relative de fetch dans l'admin, jeton de la caisse)
 - [ ] F16 File et historique
 
