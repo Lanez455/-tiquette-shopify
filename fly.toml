@@ -1,6 +1,6 @@
 # Configuration Fly.io. Remplacez « etiquettes-codes-barres » par le nom choisi
 # avec `fly launch` (voir docs/DEPLOIEMENT.md).
-app = "etiquettes-codes-barres"
+app = "etiqo-barcode-labels"
 primary_region = "cdg"
 
 [build]

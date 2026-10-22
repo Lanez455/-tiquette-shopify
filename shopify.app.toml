@@ -1,8 +1,8 @@
 # Configuration de l'app. client_id et application_url sont remplis par
 # `shopify app config link` une fois le compte Partenaire créé.
-client_id = ""
+client_id = "45f064b1938d90f6b9716f5b31beeec1"
 name = "Etiqo Barcode Labels"
-application_url = "https://example.com"
+application_url = "https://etiqo-barcode-labels.fly.dev"
 embedded = true
 
 [build]
@@ -29,4 +29,4 @@ api_version = "2026-10"
 scopes = "read_products,write_products,read_inventory,write_inventory,read_locations,read_inventory_purchase_orders,read_inventory_transfers"
 
 [auth]
-redirect_urls = [ "https://example.com/auth/callback" ]
+redirect_urls = [ "https://etiqo-barcode-labels.fly.dev/auth/callback" ]

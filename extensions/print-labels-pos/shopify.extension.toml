@@ -5,6 +5,8 @@ api_version = "2026-10"
 [[extensions]]
 name = "t:name"
 handle = "print-labels-pos"
+
+uid = "8dd7d6db-a7a9-5e83-1ed1-faa12e1c3c43a76f8216"
 type = "ui_extension"
 
 [[extensions.targeting]]

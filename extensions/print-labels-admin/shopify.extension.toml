@@ -5,11 +5,22 @@ api_version = "2026-10"
 [[extensions]]
 name = "t:name"
 handle = "print-labels-admin"
+
+uid = "3f4d352b-85b2-7d97-818f-6c1203f12d4e3a1b4646"
 type = "ui_extension"
 
 [[extensions.targeting]]
 module = "./src/PrintAction.tsx"
 target = "admin.product-details.print-action.render"
+
+# Shopify n'accepte qu'une cible d'impression par extension : la sélection
+# dans la liste des produits est donc une seconde extension, même code.
+[[extensions]]
+name = "t:name"
+handle = "print-labels-admin-list"
+
+uid = "8328728f-c9ea-f622-3211-dfd446de0ca435ebfb5d"
+type = "ui_extension"
 
 [[extensions.targeting]]
 module = "./src/PrintAction.tsx"
