@@ -141,7 +141,7 @@ export const EN: Record<string, string> = {
   "Taille": "Size",
   "Collections": "Collections",
   "(par défaut)": "(default)",
-  "Par défaut": "Make default",
+  "Par défaut": "Default",
   "Nouveau modèle à partir d'un format prêt": "New template from a ready-made format",
   "Format": "Format",
   "Nom (facultatif)": "Name (optional)",
@@ -425,4 +425,5 @@ export const EN: Record<string, string> = {
   "Origine": "Source",
   "Fait": "Done",
   "1 étiquette sans code-barres : créez-le depuis l'écran Codes-barres": "1 label without a barcode: create it from the Barcodes screen",
+  "Ou importez un fichier CSV": "Or import a CSV file",
 };
