@@ -1,7 +1,7 @@
 # Configuration de l'app. client_id et application_url sont remplis par
 # `shopify app config link` une fois le compte Partenaire créé.
 client_id = ""
-name = "Étiquettes code-barres"
+name = "Etiqo Barcode Labels"
 application_url = "https://example.com"
 embedded = true
 

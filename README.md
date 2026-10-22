@@ -1,4 +1,4 @@
-# Étiquettes code-barres pour Shopify
+# Etiqo : étiquettes code-barres pour Shopify
 
 App Shopify d'étiquettes code-barres pour les boutiques physiques. Le cahier des charges complet est dans [docs/SPEC.md](docs/SPEC.md), les règles de travail dans [CLAUDE.md](CLAUDE.md) et l'avancement dans [ROADMAP.md](ROADMAP.md).
 

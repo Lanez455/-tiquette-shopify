@@ -14,7 +14,8 @@ beforeAll(() => {
   // Vraie base SQLite, créée par les migrations du dépôt
   execSync("npx prisma migrate deploy", { env: { ...process.env, DATABASE_URL: url }, stdio: "pipe" });
   db = new PrismaClient({ datasourceUrl: url });
-});
+  // Lancer Prisma prend plus de 10 s quand toute la suite tourne en parallèle
+}, 60_000);
 
 afterAll(async () => {
   await db?.$disconnect();
