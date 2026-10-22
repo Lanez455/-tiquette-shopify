@@ -1,5 +1,6 @@
 import type { ActionFunctionArgs, LoaderFunctionArgs } from "react-router";
 import { Form, useActionData, useLoaderData, useNavigation } from "react-router";
+import { useEffect } from "react";
 import { authenticate } from "../shopify.server";
 import { FREE_CUSTOM_TEMPLATES, FREE_MONTHLY_LABELS, forgetPlan, MAGASIN, PLAN_NAMES, PLAN_PRICES, planFromSubscriptions, PRO } from "../lib/billing/plans";
 import { labelsUsedThisMonth } from "../lib/billing/usage.server";
@@ -28,9 +29,20 @@ export const action = async ({ request }: ActionFunctionArgs) => {
     return { message: "Vous êtes passé à la formule Gratuit." };
   }
   if (wanted !== PRO && wanted !== MAGASIN) return { message: "Formule inconnue" };
-  // Shopify affiche sa page de validation, puis remplace l'ancienne formule
-  return billing.request({ plan: wanted, isTest: isTest() });
+  // Shopify affiche sa page de validation, puis remplace l'ancienne formule.
+  // Pour un envoi depuis l'app, la bibliothèque lève une réponse 401 qui porte
+  // l'adresse de validation dans un en-tête ; elle ne parvient pas jusqu'à App
+  // Bridge, donc on renvoie l'adresse à la page, qui l'ouvre elle-même.
+  try {
+    return await billing.request({ plan: wanted, isTest: isTest() });
+  } catch (e) {
+    const confirmationUrl = e instanceof Response ? e.headers.get(REAUTH_URL_HEADER) : null;
+    if (confirmationUrl) return { confirmationUrl };
+    throw e;
+  }
 };
+
+const REAUTH_URL_HEADER = "X-Shopify-API-Request-Failure-Reauthorize-Url";
 
 const PLANS = [
   { id: "free", name: "Gratuit", price: 0, features: [`${FREE_MONTHLY_LABELS} étiquettes par mois`, "Formats prêts", `${FREE_CUSTOM_TEMPLATES} modèle personnalisé`, "Codes-barres uniques"] },
@@ -45,9 +57,14 @@ export default function Plans() {
   const { plan, used } = useLoaderData<typeof loader>();
   const result = useActionData<typeof action>();
   const busy = useNavigation().state !== "idle";
+  const confirmationUrl = result && "confirmationUrl" in result ? result.confirmationUrl : null;
+  useEffect(() => {
+    // Page de validation de Shopify, en dehors de l'iframe de l'app
+    if (confirmationUrl) window.open(confirmationUrl, "_top");
+  }, [confirmationUrl]);
   return (
     <s-page heading={t("Formules")}>
-      {result?.message && <s-banner tone="info">{t(result.message)}</s-banner>}
+      {result && "message" in result && <s-banner tone="info">{t(result.message)}</s-banner>}
       <s-section>
         <s-paragraph>
           {t("Formule actuelle : {plan}.", { plan: t(PLAN_NAMES[plan]) })}{" "}
