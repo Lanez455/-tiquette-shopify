@@ -50,14 +50,20 @@ async function loadFonts(doc: PDFDocument) {
   };
 }
 
-function fieldValue(item: LabelItem, field: FieldKey, price: PriceOptions): string {
+// Shopify nomme « Default Title » la variante unique d'un produit
+const variantName = (item: LabelItem) => (item.variantTitle && item.variantTitle !== "Default Title" ? item.variantTitle : "");
+
+export function fieldValue(item: LabelItem, field: FieldKey, price: PriceOptions): string {
   const money = (value?: string | null) => (value ? formatPrice(value, price) : "");
   switch (field) {
     case "title":
       return item.title;
     case "variantTitle":
-      // Shopify nomme « Default Title » la variante unique d'un produit
-      return item.variantTitle && item.variantTitle !== "Default Title" ? item.variantTitle : "";
+      return variantName(item);
+    case "titleWithVariant": {
+      const variant = variantName(item);
+      return variant ? `${item.title} · ${variant}` : item.title;
+    }
     case "sku":
       return item.sku ?? "";
     case "price":

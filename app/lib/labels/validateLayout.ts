@@ -1,6 +1,6 @@
 import type { FieldKey, LabelElement, LabelTemplateLayout, TextStyle } from "./template";
 
-const FIELDS: FieldKey[] = ["title", "variantTitle", "sku", "price", "compareAtPrice", "vendor", "productType", "barcodeDigits"];
+const FIELDS: FieldKey[] = ["title", "titleWithVariant", "variantTitle", "sku", "price", "compareAtPrice", "vendor", "productType", "barcodeDigits"];
 const isField = (f: unknown): f is FieldKey =>
   typeof f === "string" &&
   (FIELDS.includes(f as FieldKey) || /^metafield:(product|variant)\.[\w-]+\.[\w-]+$/.test(f));
