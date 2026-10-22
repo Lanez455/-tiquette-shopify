@@ -1,0 +1,16 @@
+{
+  "name": "Étiquettes code-barres",
+  "lang": "fr",
+  "tile": "Étiquettes",
+  "cartItems": "{{n}} article(s) du panier",
+  "emptyCart": "Ajoutez des articles au panier",
+  "cartLabels": "Étiquettes du panier",
+  "item": "Article",
+  "printN": "Imprimer {{n}} étiquette(s)",
+  "labels": "Étiquettes",
+  "howMany": "Nombre d'étiquettes",
+  "print": "Imprimer",
+  "printLabels": "Imprimer des étiquettes",
+  "nothing": "Aucune étiquette à imprimer",
+  "failed": "Impression impossible : vérifiez la connexion"
+}

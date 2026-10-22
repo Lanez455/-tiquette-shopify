@@ -1,0 +1,13 @@
+{
+  "name": "Barcode labels",
+  "lang": "en",
+  "unreachable": "Can't reach the label app",
+  "prepareFailed": "Couldn't prepare the labels",
+  "error": "Error",
+  "template": "Label template",
+  "perVariant": "Labels per variant",
+  "asStock": "As many as in stock",
+  "selected": "{{n}} products selected.",
+  "allVariants": "All variants of the product.",
+  "openApp": "To choose variant by variant, open the app."
+}
