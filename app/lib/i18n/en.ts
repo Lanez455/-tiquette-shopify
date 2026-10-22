@@ -426,4 +426,8 @@ export const EN: Record<string, string> = {
   "Fait": "Done",
   "1 étiquette sans code-barres : créez-le depuis l'écran Codes-barres": "1 label without a barcode: create it from the Barcodes screen",
   "Ou importez un fichier CSV": "Or import a CSV file",
+  "Ouvrez Etiqo depuis votre administration Shopify": "Open Etiqo from your Shopify admin",
+  "Dans l'administration de votre boutique, allez dans Applications, puis choisissez Etiqo Barcode Labels.": "In your store's admin, go to Apps, then choose Etiqo Barcode Labels.",
+  "Pas encore installée ? Ajoutez-la depuis l'App Store de Shopify.": "Not installed yet? Add it from the Shopify App Store.",
+  "Politique de confidentialité": "Privacy policy",
 };
