@@ -20,8 +20,8 @@ Elle suffit pour démarrer. SQLite n'accepte qu'une seule machine : pour en fair
 1. Créez un compte sur https://fly.io (il demande une carte bancaire).
 2. Installez l'outil en ligne de commande :
    - Mac : `brew install flyctl`
-   - Windows (PowerShell) : `pwsh -Command "iwr https://fly.io/install.ps1 -useb | iex"`
-3. Connectez-vous : `fly auth login`
+   - Windows (PowerShell) : `iwr https://fly.io/install.ps1 -useb | iex`, puis rouvrez PowerShell
+3. Connectez-vous : `fly auth login`. Si le terminal ne peut pas recevoir la validation du navigateur, la page affiche un code : `fly auth login --code <code>`.
 
 ## 2. Créer l'app sur Fly
 
@@ -34,6 +34,8 @@ Refusez s'il propose une base PostgreSQL ou Redis : l'app n'en a pas besoin pour
 
 L'adresse de l'app sera `https://<nom>.fly.dev`. Notez-la.
 
+Autre façon de faire, sans questions : `fly apps create <nom> --org personal`, puis remplacez à la main la ligne `app = …` de `fly.toml`.
+
 Créez ensuite le volume des données, dans la même région que la machine (Paris, `cdg`) :
 
 ```
@@ -43,13 +45,15 @@ fly volumes create donnees --region cdg --size 1
 ## 3. Relier l'app au compte Partenaire Shopify
 
 1. Sur https://partners.shopify.com, créez un compte Partenaire si ce n'est pas fait.
-2. Dans le dossier du projet : `shopify app config link`. Choisissez « créer une nouvelle app ». Le `client_id` se remplit dans `shopify.app.toml`.
+2. Dans le dossier du projet : `shopify app config link`. Choisissez l'organisation qui contient votre boutique de test, puis « créer une nouvelle app ».
+   **Attention :** la commande réécrit `shopify.app.toml` et efface les webhooks du projet (dont les webhooks RGPD obligatoires). Gardez seulement le nouveau `client_id`, puis remettez le reste du fichier : `git checkout -- shopify.app.toml` et recopiez le `client_id`.
 3. Dans `shopify.app.toml`, remplacez `https://example.com` par votre adresse Fly aux deux endroits :
    ```
    application_url = "https://<nom>.fly.dev"
    redirect_urls = [ "https://<nom>.fly.dev/auth/callback" ]
    ```
-4. Récupérez la clé secrète : Partner Dashboard → Apps → votre app → « Client credentials ».
+4. Récupérez la clé secrète : Partner Dashboard → « Tableau de bord de développement » (dev.shopify.com) → votre app → Paramètres → « Secret ». Ne la collez jamais dans un message ni sur une capture d'écran ; si cela arrive, faites-la pivoter au même endroit.
+5. Choisissez la **distribution publique** (Partner Dashboard → Distribution des applications). Sans elle, Shopify refuse les abonnements, même en mode test (« Apps without a public distribution cannot use the Billing API »). Ce choix est définitif.
 
 ## 4. Donner les secrets à Fly
 
@@ -68,8 +72,10 @@ Le jour où vous facturez pour de vrai : `fly secrets set BILLING_TEST=false`
 
 ```
 fly deploy
-shopify app deploy
+shopify app deploy --allow-updates
 ```
+
+Si `fly deploy` échoue avec « certificate signed by unknown authority » (antivirus ou réseau qui filtre les connexions sécurisées), utilisez l'autre constructeur de Fly : `fly deploy --depot=false`.
 
 La première commande construit et lance le serveur. La seconde envoie à Shopify la configuration, les webhooks et les extensions (bouton Imprimer de l'admin, tuile de la caisse).
 
