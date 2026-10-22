@@ -78,7 +78,11 @@ export async function renderPrintGroups(args: {
     if (result.barcodeTooWide.length) warnings.push(`${result.barcodeTooWide.length} codes-barres trop larges pour leur zone`);
     const missing = items.filter((i) => !i.barcode).length;
     if (missing && template.layout.elements.some((e) => e.kind === "barcode")) {
-      warnings.push(`${missing} étiquettes sans code-barres : créez-les depuis l'écran Codes-barres`);
+      warnings.push(
+        missing === 1
+          ? "1 étiquette sans code-barres : créez-le depuis l'écran Codes-barres"
+          : `${missing} étiquettes sans code-barres : créez-les depuis l'écran Codes-barres`,
+      );
     }
     groups.push({ templateId, templateName: template.name, labelCount: items.length, pdf: result.pdf, warnings });
   }

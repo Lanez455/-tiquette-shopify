@@ -3,6 +3,8 @@
 
 export type FieldKey =
   | "title"
+  // Titre suivi de la variante (« Bague Lune · 52 »), ou le titre seul
+  | "titleWithVariant"
   | "variantTitle"
   | "sku"
   | "price"

@@ -2,7 +2,10 @@ import type { Gql } from "../shopify/graphql";
 
 // Formules (cahier des charges) : Gratuit, Pro 9,99 $, Magasin 19,99 $ par mois
 export const PRO = "Pro";
-export const MAGASIN = "Magasin";
+// Nom de l'abonnement chez Shopify, affiché sur sa page de paiement : identique
+// au nom de la fiche App Store. Les abonnements créés avant s'appelaient « Magasin ».
+export const MAGASIN = "Store";
+const MAGASIN_LEGACY = "Magasin";
 export type Plan = "free" | "pro" | "store";
 
 export const FREE_MONTHLY_LABELS = 50;
@@ -27,7 +30,7 @@ const PLAN_FEATURES: Record<Plan, Feature[]> = {
 
 export const can = (plan: Plan, feature: Feature) => PLAN_FEATURES[plan].includes(feature);
 
-export const PLAN_NAMES: Record<Plan, string> = { free: "Gratuit", pro: PRO, store: MAGASIN };
+export const PLAN_NAMES: Record<Plan, string> = { free: "Gratuit", pro: PRO, store: "Magasin" };
 
 const UPGRADE: Record<Feature, string> = {
   unlimited_labels: `La formule Gratuit compte ${FREE_MONTHLY_LABELS} étiquettes par mois`,
@@ -73,7 +76,7 @@ export const monthStart = (now = new Date()) => new Date(Date.UTC(now.getUTCFull
 
 export function planFromSubscriptions(subscriptions: { name: string; status: string }[]): Plan {
   const active = subscriptions.filter((s) => s.status === "ACTIVE").map((s) => s.name);
-  if (active.includes(MAGASIN)) return "store";
+  if (active.includes(MAGASIN) || active.includes(MAGASIN_LEGACY)) return "store";
   if (active.includes(PRO)) return "pro";
   return "free";
 }

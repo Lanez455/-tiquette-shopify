@@ -8,7 +8,7 @@
 ## Stack
 - Modèle d'app officiel généré par la CLI Shopify, interface Polaris, intégrée à l'administration.
 - API GraphQL Admin version 2026-10 minimum (lecture des bons de commande).
-- Scopes : read_products, write_products, read_inventory, write_inventory, read_locations, read_inventory_purchase_orders, read_inventory_transfers.
+- Scopes : read_products, write_products, read_inventory, write_inventory, read_locations, read_inventory_purchase_orders, read_inventory_transfers, read_locales.
 - Base de données : celle du modèle en développement, PostgreSQL en production.
 - Impression : PDF à la taille exacte de l'étiquette par défaut ; impression directe sur ordinateur via Zebra Browser Print (ZPL) et DYMO Connect, repli sur le PDF (toujours le PDF sur iPad). Codes-barres : bibliothèque éprouvée (Code 128, EAN-13, UPC-A).
 - Extensions : impression dans la fiche et la liste produits de l'administration, tuile dans l'app de caisse.
