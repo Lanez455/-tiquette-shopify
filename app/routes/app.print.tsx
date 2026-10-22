@@ -64,7 +64,12 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
     given = [];
   }
   // Bons de commande et transferts récents (F14) ; absents si l'accès n'est pas accordé
-  const docs: InventoryDoc[] = await listInventoryDocs(gqlFromAdmin(admin)).catch(() => []);
+  const docs: InventoryDoc[] = await listInventoryDocs(gqlFromAdmin(admin)).catch((error) => {
+    // Sans cette trace, une liste vide ne dit pas pourquoi (accès, version de l'API…)
+    const detail = (error as { body?: { errors?: { graphQLErrors?: unknown } } })?.body?.errors?.graphQLErrors;
+    console.error("Inventory purchase orders and transfers unreadable", JSON.stringify(detail ?? String(error)));
+    return [];
+  });
   return {
     docs,
     lines: given.length
@@ -182,7 +187,8 @@ export default function Print() {
         .map((p) => t("ligne {line}{key} : {message}", { line: p.line, key: p.key ? ` (${p.key})` : "", message: t(p.message) }))
         .join(" ; ");
       setMessage({
-        tone: problems.length ? "warning" : "success",
+        // Rien d'ajouté (formule, document vide) : c'est un avertissement, pas une réussite
+        tone: problems.length || result.lines.length === 0 ? "warning" : "success",
         text: `${t(result.notice)}${problems.length ? ` ${t("{n} ligne(s) à revoir :", { n: problems.length })} ${detail}${problems.length > 8 ? " ; …" : ""}` : ""}`,
       });
     }
