@@ -102,3 +102,33 @@ Règles de Shopify à respecter sur toute la fiche : pas de prix ni d'avis dans 
 - [ ] Icône et captures prêtes.
 - [ ] `BILLING_TEST` n'est pas réglé à `false` : les abonnements restent en test pendant la revue.
 - [ ] Après l'accord de Shopify : `fly secrets set BILLING_TEST=false` pour facturer pour de vrai.
+
+## Champs du formulaire « English listing » (Partner Dashboard)
+
+| Section | Champ | Valeur |
+| --- | --- | --- |
+| Basic app information | App name | Etiqo Barcode Labels |
+| | App category | Store management → Inventory management (ou « Barcodes » si proposé) |
+| | Languages | English, French |
+| App discovery | App card subtitle | Barcode labels that fit your printer, in a few clicks |
+| | Search terms | barcode labels · label printer · price tags · dymo zebra · inventory labels |
+| Listing content | Support | E-mail : YanisLanez@outlook.com |
+| | Resources | Privacy policy : https://etiqo-barcode-labels.fly.dev/confidentialite |
+| Pricing | Plans | Free 0 $ · Pro 9,99 $/mois · Store 19,99 $/mois (textes plus haut) |
+| Install requirements | Sales channel | Aucun canal obligatoire (ni boutique en ligne ni POS) |
+| Contact | Merchant review email / App submission email | YanisLanez@outlook.com |
+| App testing | Test account | Non nécessaire : l'app est intégrée à l'admin et utilise la session Shopify |
+| | Testing instructions | Texte « Instructions de test » plus haut |
+| | Screencast URL | Vidéo YouTube « non répertoriée » (voir le déroulé ci-dessous) |
+
+**Déroulé de la vidéo de démonstration (2 à 3 minutes, sans voix, en anglais si possible)**
+1. Installation de l'app sur la boutique de test et écran d'accueil.
+2. Codes-barres : création des codes manquants.
+3. Impression : sélection de produits, quantités, aperçu, PDF.
+4. Fiche produit → Plus d'actions → Imprimer → Etiqo Barcode Labels.
+5. Formules : choix de Pro (abonnement de test), puis impression depuis un bon de commande.
+6. Prix changés.
+
+Enregistrement sous Windows 11 : Outil Capture d'écran (Win + Maj + R), puis mise en ligne sur YouTube en « non répertoriée ».
+
+**Point à surveiller :** dans l'app en anglais, la formule s'appelle « Store », mais la page de paiement de Shopify affiche « Magasin » (nom technique de l'abonnement). À harmoniser avant la soumission.
