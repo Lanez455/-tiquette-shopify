@@ -47,7 +47,7 @@ const REAUTH_URL_HEADER = "X-Shopify-API-Request-Failure-Reauthorize-Url";
 const PLANS = [
   { id: "free", name: "Gratuit", price: 0, features: [`${FREE_MONTHLY_LABELS} étiquettes par mois`, "Formats prêts", `${FREE_CUSTOM_TEMPLATES} modèle personnalisé`, "Codes-barres uniques"] },
   { id: PRO, name: PRO, price: PLAN_PRICES[PRO], features: ["Étiquettes illimitées", "Éditeur complet, modèles illimités", "Bons de commande, transferts, CSV"] },
-  { id: MAGASIN, name: MAGASIN, price: PLAN_PRICES[MAGASIN], features: ["Tout Pro", "Plusieurs magasins et réception par scan", "Tuile en caisse", "Impression directe Zebra et Dymo", "Support prioritaire"] },
+  { id: MAGASIN, name: "Magasin", price: PLAN_PRICES[MAGASIN], features: ["Tout Pro", "Plusieurs magasins et réception par scan", "Tuile en caisse", "Impression directe Zebra et Dymo", "Support prioritaire"] },
 ] as const;
 
 const PLAN_ID = { free: "free", pro: PRO, store: MAGASIN } as const;
