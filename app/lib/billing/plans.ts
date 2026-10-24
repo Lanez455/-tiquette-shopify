@@ -1,17 +1,30 @@
 import type { Gql } from "../shopify/graphql";
 
-// Formules (cahier des charges) : Gratuit, Pro 9,99 $, Magasin 19,99 $ par mois
-export const PRO = "Pro";
+// Formules : Gratuit, Pro 7,99 $, Magasin (« Store » chez Shopify) 17,99 $ par mois, ou à l'année (1.1.0)
+export const PRO = "Pro" as const;
 // Nom de l'abonnement chez Shopify, affiché sur sa page de paiement : identique
 // au nom de la fiche App Store. Les abonnements créés avant s'appelaient « Magasin ».
-export const MAGASIN = "Store";
+export const MAGASIN = "Store" as const;
 const MAGASIN_LEGACY = "Magasin";
+export const PRO_ANNUAL = "Pro Yearly" as const;
+export const MAGASIN_ANNUAL = "Store Yearly" as const;
+export const PAID_PLANS = [PRO, MAGASIN, PRO_ANNUAL, MAGASIN_ANNUAL] as const;
+export type PaidPlan = (typeof PAID_PLANS)[number];
+export const isPaidPlan = (name: string): name is PaidPlan => (PAID_PLANS as readonly string[]).includes(name);
 export type Plan = "free" | "pro" | "store";
 
-export const FREE_MONTHLY_LABELS = 50;
+// 50 jusqu'à la 1.0.0, 250 depuis la 1.1.0 (docs/ETUDE_CONCURRENCE.md)
+export const FREE_MONTHLY_LABELS = 250;
 export const FREE_CUSTOM_TEMPLATES = 1;
 
-export const PLAN_PRICES = { [PRO]: 9.99, [MAGASIN]: 19.99 } as const;
+// Prix des nouveaux abonnements ; un abonnement existant garde son prix chez Shopify
+export const PLAN_PRICES = { [PRO]: 7.99, [MAGASIN]: 17.99, [PRO_ANNUAL]: 79, [MAGASIN_ANNUAL]: 179 } as const;
+
+// Remise de l'année par rapport à 12 mois, en %
+export const annualDiscount = (monthly: number, yearly: number) => Math.round((1 - yearly / (12 * monthly)) * 100);
+
+// Essai gratuit des formules payantes, une seule fois par boutique
+export const TRIAL_DAYS = 14;
 
 export type Feature =
   | "unlimited_labels"
@@ -23,7 +36,8 @@ export type Feature =
   | "pos";
 
 const PLAN_FEATURES: Record<Plan, Feature[]> = {
-  free: [],
+  // Bons de commande et transferts inclus dans le Gratuit depuis la 1.1.0
+  free: ["purchase_orders"],
   pro: ["unlimited_labels", "unlimited_templates", "purchase_orders", "csv"],
   store: ["unlimited_labels", "unlimited_templates", "purchase_orders", "csv", "direct_print", "receiving", "pos"],
 };
@@ -76,10 +90,26 @@ export const monthStart = (now = new Date()) => new Date(Date.UTC(now.getUTCFull
 
 export function planFromSubscriptions(subscriptions: { name: string; status: string }[]): Plan {
   const active = subscriptions.filter((s) => s.status === "ACTIVE").map((s) => s.name);
-  if (active.includes(MAGASIN) || active.includes(MAGASIN_LEGACY)) return "store";
-  if (active.includes(PRO)) return "pro";
+  if (active.includes(MAGASIN) || active.includes(MAGASIN_LEGACY) || active.includes(MAGASIN_ANNUAL)) return "store";
+  if (active.includes(PRO) || active.includes(PRO_ANNUAL)) return "pro";
   return "free";
 }
+
+// Jours d'essai restants : l'essai court depuis le premier abonnement accepté,
+// même résilié depuis, pour qu'on ne puisse pas l'enchaîner
+const STARTED = new Set(["ACTIVE", "CANCELLED", "EXPIRED", "FROZEN"]);
+
+export function trialDaysLeft(subscriptions: { status: string; createdAt: string }[], now = Date.now()): number {
+  const starts = subscriptions.filter((s) => STARTED.has(s.status)).map((s) => Date.parse(s.createdAt));
+  if (!starts.length) return TRIAL_DAYS;
+  const used = Math.floor((now - Math.min(...starts)) / 86_400_000);
+  return Math.max(0, TRIAL_DAYS - used);
+}
+
+export const ALL_SUBSCRIPTIONS = `#graphql
+  query AllSubscriptions {
+    currentAppInstallation { allSubscriptions(first: 50) { nodes { status createdAt } } }
+  }`;
 
 const ACTIVE_SUBSCRIPTIONS = `#graphql
   query ActiveSubscriptions {

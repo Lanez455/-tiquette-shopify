@@ -1,6 +1,7 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import type { ActionFunctionArgs, LoaderFunctionArgs } from "react-router";
 import { useFetcher, useLoaderData, useSearchParams } from "react-router";
+import prisma from "../db.server";
 import { authenticate } from "../shopify.server";
 import { listTemplates } from "../lib/labels/templates.server";
 import { AUTO_TEMPLATE, initialQuantity, MAX_PER_LINE, type DefaultQuantity } from "../lib/print/job";
@@ -15,6 +16,7 @@ import { matchCsvRows } from "../lib/import/match";
 import { parseLinesParam } from "../lib/print/links.server";
 import { currentPlan, PlanLimitError, requireFeature } from "../lib/billing/plans";
 import { useT } from "../lib/i18n/react";
+import { askReview, shouldAskReview } from "../lib/review/ask";
 
 interface Line {
   variantId: string;
@@ -81,6 +83,7 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
     defaultTemplateId: settings.defaultTemplateId ?? "builtin:dymo-30336",
     source: url.searchParams.get("source") ?? "product",
     printMethod: settings.printMethod === "zebra" || settings.printMethod === "dymo" ? settings.printMethod : "pdf",
+    printCount: await prisma.printJob.count({ where: { shop: session.shop } }),
   };
 };
 
@@ -167,6 +170,7 @@ export default function Print() {
   const [preview, setPreview] = useState<string | null>(null);
   const [query, setQuery] = useState("");
   const [page, setPage] = useState(0);
+  const printCount = useRef(data.printCount);
 
   // Ajoute les lignes reçues ; un article déjà présent prend la quantité du document
   useEffect(() => {
@@ -247,6 +251,9 @@ export default function Print() {
       tone: warnings.length || note ? "warning" : "success",
       text: `${t(count === 1 ? "1 étiquette envoyée à l'impression." : "{n} étiquettes envoyées à l'impression.", { n: count })}${note ? ` ${note}` : ""}${warnings.length ? ` ${warnings.map((w) => t(w)).join(". ")}.` : ""}`,
     });
+    // Avis sur l'App Store, aux paliers d'impressions réussies
+    if (shouldAskReview(printCount.current, printCount.current + 1)) void askReview(shopify.reviews);
+    printCount.current += 1;
     // La file se vide après chaque impression (F16) ; elle reste dans l'historique
     setLines([]);
     setQuery("");

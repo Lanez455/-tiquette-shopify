@@ -1,5 +1,12 @@
 # Journal des versions
 
+## 1.1.0 (préparée, à publier après l'acceptation sur l'App Store)
+- Formule Gratuit : 250 étiquettes par mois au lieu de 50, impression depuis les bons de commande et les transferts comprise (docs/ETUDE_CONCURRENCE.md).
+- Nouveaux prix : Pro 7,99 $ par mois ou 79 $ par an, Magasin 17,99 $ par mois ou 179 $ par an. Un abonnement déjà en cours garde son prix chez Shopify.
+- 14 jours d'essai gratuit sur Pro et Magasin, une seule fois par boutique.
+- Demande d'avis App Store après la 3e impression réussie, puis à la 20e et à la 50e (Shopify décide d'afficher ou non sa fenêtre).
+- Accueil : section « Nouveautés ».
+
 ## Non publié
 - Formats prêts : le titre est suivi de la variante (« Bague Lune · 52 »), champ « Titre et variante » aussi proposé dans l'éditeur. Les modèles personnalisés existants ne changent pas.
 - Accueil : premiers pas cochés automatiquement, chiffres clés (étiquettes du mois, formule, variantes sans code-barres, prix changés), raccourcis, historique en tableau.
