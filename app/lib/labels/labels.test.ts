@@ -2,7 +2,8 @@ import { describe, expect, it } from "vitest";
 import { PDFDocument } from "pdf-lib";
 import { fitText } from "./fitText";
 import { customFormat, FORMATS, getFormat } from "./formats";
-import { renderLabels } from "./pdf.server";
+import { fieldValue, renderLabels } from "./pdf.server";
+import { defaultLayout } from "./defaultLayouts";
 import { formatPrice } from "./price";
 import { layoutSlots } from "./sheet";
 import type { LabelTemplateLayout } from "./template";
@@ -143,5 +144,22 @@ describe("rendu PDF", () => {
     });
     // 30 étiquettes à partir de la 11e case : la planche déborde sur une 2e page
     expect((await PDFDocument.load(pdf)).getPageCount()).toBe(2);
+  });
+});
+
+describe("titre et variante sur les étiquettes prêtes", () => {
+  const ring = { title: "Bague Lune", variantTitle: "52" };
+
+  it("ajoute la variante au titre, sauf pour la variante unique", () => {
+    expect(fieldValue(ring, "titleWithVariant", EUR)).toBe("Bague Lune · 52");
+    expect(fieldValue({ title: "Tote bag", variantTitle: "Default Title" }, "titleWithVariant", EUR)).toBe("Tote bag");
+    expect(fieldValue({ title: "Tote bag" }, "titleWithVariant", EUR)).toBe("Tote bag");
+  });
+
+  it("distingue deux tailles d'un même produit sur chaque format prêt avec un titre", () => {
+    for (const f of FORMATS) {
+      const fields = defaultLayout(f).elements.flatMap((e) => (e.kind === "field" ? [e.field] : []));
+      expect(fields).not.toContain("title");
+    }
   });
 });

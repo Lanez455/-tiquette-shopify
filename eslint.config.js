@@ -3,7 +3,7 @@ import reactHooks from "eslint-plugin-react-hooks";
 import tseslint from "typescript-eslint";
 
 export default tseslint.config(
-  { ignores: ["build/", ".react-router/", "node_modules/", "extensions/*/dist/", "simulation/", "extensions/*/shopify.d.ts"] },
+  { ignores: ["build/", ".react-router/", "node_modules/", ".shopify/", "extensions/*/dist/", "simulation/", "extensions/*/shopify.d.ts"] },
   js.configs.recommended,
   ...tseslint.configs.recommended,
   {

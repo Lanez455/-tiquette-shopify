@@ -1,6 +1,11 @@
 # Journal des versions
 
 ## Non publié
+- Formats prêts : le titre est suivi de la variante (« Bague Lune · 52 »), champ « Titre et variante » aussi proposé dans l'éditeur. Les modèles personnalisés existants ne changent pas.
+- Accueil : premiers pas cochés automatiquement, chiffres clés (étiquettes du mois, formule, variantes sans code-barres, prix changés), raccourcis, historique en tableau.
+- Impression : recherche dans la file, pages de 50 lignes, bouton pour retirer une ligne, zone de dépôt pour le CSV, pluriels corrigés.
+- Modèles : modèles personnalisés et formats prêts séparés, bouton « Personnaliser », badge « Par défaut ».
+- Mise en ligne sur Fly.io : formulaires acceptés derrière le proxy, accès read_locales (format des prix), page de validation des abonnements, PDF du bouton Imprimer de l'admin autorisé (CORS).
 - Nom de l'app : « Etiqo Barcode Labels » (le nom doit commencer par une marque, règle 4.1 de l'App Store).
 - Version anglaise : l'app, le bouton Imprimer de l'admin et la caisse suivent la langue de l'admin Shopify (français ou anglais). La phrase de confirmation « REPLACE n » est acceptée comme « REMPLACER n ».
 - Mise en ligne : image Docker, configuration Fly.io, contrôle de santé /healthz, politique de confidentialité publique (/confidentialite) et guide pas à pas (docs/DEPLOIEMENT.md).

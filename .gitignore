@@ -4,5 +4,6 @@ build
 .env
 prisma/*.sqlite*
 .shopify
+extensions/*/dist
 *.log
 simulation

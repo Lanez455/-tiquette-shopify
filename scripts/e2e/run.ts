@@ -20,7 +20,7 @@ const KEY = "e2e-api-key";
 const SECRET = "e2e-api-secret";
 const PORT = 3100;
 const APP = `http://localhost:${PORT}`;
-const SCOPES = "read_products,write_products,read_inventory,write_inventory,read_locations,read_inventory_purchase_orders,read_inventory_transfers";
+const SCOPES = "read_products,write_products,read_inventory,write_inventory,read_locations,read_inventory_purchase_orders,read_inventory_transfers,read_locales";
 const ROOT = new URL("../..", import.meta.url).pathname;
 
 const dir = mkdtempSync(join(tmpdir(), "e2e-"));
