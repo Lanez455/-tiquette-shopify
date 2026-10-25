@@ -46,35 +46,40 @@ Critères de validation : voir docs/SPEC.md. Tout est écrit et testé (tests au
 - [x] Nouveaux prix, paiement à l'année, 14 jours d'essai
 - [x] Demande d'avis App Store après la 3e impression
 
-## Version 1.2.0 : comptage du stock (prévue après la 1.1.0)
-- [ ] Comptage d'inventaire par scan, dans la formule Magasin : compter un magasin entier ou par fournisseur, type ou tag ; scan au téléphone, à la douchette ou à la caméra ; écarts avec photos à valider avant de mettre à jour le stock Shopify ; ventes faites pendant le comptage prises en compte. Concurrence relevée le 25/10/2026 : BR Stock Take (3,5 ★, 30 avis, 14,99 $ et 24,99 $), CountKit (sorti en octobre 2026, 3,99 $ et 7,99 $).
-- [ ] Comptage enregistré au fur et à mesure : rien n'est perdu si la page se ferme.
+Plan détaillé et sources : document « Etiqo : plan jusqu'à la 2.0 » (étude de ~110 avis négatifs sur 12 apps et du forum Shopify, 25/10/2026). Ordre validé par Yanis le 25/10/2026.
 
-Plan détaillé et sources : document « Etiqo : plan jusqu'à la 2.0 » (avis négatifs des concurrents et fermeture de Stocky le 31/08/2026).
+## Version 1.2.0 : réception parfaite
+- [ ] Imprimer depuis un bon de commande les quantités reçues, pas commandées
+- [ ] Livraison en plusieurs fois : reste à imprimer gardé pour plus tard
+- [ ] Contrôle avant impression : variantes sans code-barres, sans prix ou en double, avec solution en un clic (créer le code ou imprimer le SKU)
+- [ ] Alerte quand le prix d'achat du bon de commande diffère du coût dans Shopify
+- [ ] Étiquettes de carton (ITF-14 ou Code 128 avec la quantité du carton)
 
-## Version 1.3.0 : réassort (remplacer Stocky)
-- [ ] Stock minimum et maximum par produit
-- [ ] Bons de commande proposés automatiquement sous le minimum (vérifier d'abord si l'API permet de créer un bon de commande ; sinon brouillon PDF ou CSV pour le fournisseur ; tout nouveau scope demandé à Yanis avant)
-- [ ] Fournisseurs avec leurs codes, import CSV des bons de commande
-- [ ] Import des données exportées de Stocky
+## Version 1.3.0 : comptage du stock (formule Magasin)
+- [ ] Compter un magasin entier ou par fournisseur, type ou tag ; téléphone, douchette ou caméra
+- [ ] Comptage enregistré au fur et à mesure : rien n'est perdu si la page se ferme
+- [ ] Écarts avec photos à valider avant de toucher au stock ; ventes pendant le comptage prises en compte
+- [ ] Lecture en direct chez Shopify, sans copie qui diverge
 
-## Version 1.4.0 : confiance
-- [ ] Historique des modèles et retour à une version précédente
-- [ ] Message clair dans l'app avant chaque changement
-- [ ] Aide et contact dans l'app, réponse sous 24 h
-- [ ] Mode essai : voir ce qu'un comptage ou un réassort changerait sans l'appliquer
+## Version 1.4.0 : réassort
+- [ ] Stock minimum et maximum, suggestions de commande
+- [ ] Brouillon de commande à envoyer au fournisseur (PDF, CSV, e-mail) : l'API 2026-10 lit les bons de commande mais ne permet pas d'en créer
+- [ ] Codes fournisseur ; import des données exportées de Stocky
 
-## Version 1.5.0 : Europe
-- [ ] Allemand, espagnol, italien
-- [ ] Planches A4 européennes (Herma, Avery Zweckform)
-- [ ] Codes-barres à prix ou poids intégré (EAN-13 commençant par 2)
+## Version 1.5.0 : confiance
+- [ ] Historique des modèles, retour à une version précédente, réimpression avec l'ancienne mise en page
+- [ ] Droits par employé : remplacement de codes en masse réservé au propriétaire
+- [ ] Enregistrement automatique des modèles en cours
+- [ ] Aide dans l'app avec une vraie personne, réponse sous 24 h ; jamais de chat automatique insistant ni de demande d'avis répétée
 
-## Version 1.6.0 : prévisions simples
-- [ ] Ventes par jour et jours de stock restants
-- [ ] Alerte hebdomadaire par e-mail des ruptures à venir
-- [ ] Coût d'achat et marge par produit
+## Version 1.6.0 : Europe et cas particuliers
+- [ ] Allemand, espagnol, italien ; planches A4 européennes (Herma, Avery Zweckform)
+- [ ] Codes à prix ou poids intégré (EAN-13 commençant par 2)
+- [ ] Cyrillique et devises écrites de droite à gauche
+- [ ] Masquer le numéro sous le code-barres, cacher le prix sur un modèle (vérifier l'existant)
 
 ## Version 2.0.0 : le magasin complet
-- [ ] Tableau de bord unique : à imprimer, à compter, à commander, à recevoir
-- [ ] Liaison avec Shopify Flow (déclencheurs et actions)
-- [ ] Formule « Store Plus » possible (prévisions, plusieurs magasins) ; formules existantes inchangées pour les abonnés
+- [ ] Prévisions simples : jours de stock restants, alerte hebdomadaire des ruptures
+- [ ] Tableau de bord unique : à recevoir, à imprimer, à compter, à commander
+- [ ] Liaison avec Shopify Flow
+- [ ] Formule « Store Plus » possible ; formules existantes inchangées pour les abonnés
