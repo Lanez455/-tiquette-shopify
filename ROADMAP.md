@@ -40,3 +40,11 @@ Critères de validation : voir docs/SPEC.md. Tout est écrit et testé (tests au
 - [x] Formules Gratuit, Pro, Magasin (API de facturation ; à essayer sur une boutique de développement)
 - [x] Test de non-régression des PDF (simulateur : impression, scan et marges de chaque format)
 - [ ] Dossier de revue Shopify
+
+## Version 1.1.0 (prête, à publier après l'acceptation Shopify)
+- [x] Gratuit à 250 étiquettes par mois, bons de commande et transferts compris
+- [x] Nouveaux prix, paiement à l'année, 14 jours d'essai
+- [x] Demande d'avis App Store après la 3e impression
+
+## Version 1.2.0 (prévue après la 1.1.0)
+- [ ] Comptage d'inventaire par scan, dans la formule Magasin : compter un magasin entier ou par fournisseur, type ou tag ; scan au téléphone, à la douchette ou à la caméra ; écarts avec photos à valider avant de mettre à jour le stock Shopify ; ventes faites pendant le comptage prises en compte. Concurrence relevée le 25/10/2026 : BR Stock Take (3,5 ★, 30 avis, 14,99 $ et 24,99 $), CountKit (sorti en octobre 2026, 3,99 $ et 7,99 $).

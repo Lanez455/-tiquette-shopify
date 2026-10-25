@@ -81,8 +81,8 @@ describe("version anglaise", () => {
     expect(translate("en", "{n} étiquettes", { n: 3 })).toBe("3 labels");
     expect(translate("en", "Confirmation requise : tapez « REMPLACER 4 »")).toBe("Confirmation required: type “REPLACE 4”");
     expect(translate("fr", "{n} étiquettes", { n: 3 })).toBe("3 étiquettes");
-    expect(translate("en", new PlanLimitError("unlimited_labels", " : il en reste 47 ce mois-ci, 60 demandées").message)).toBe(
-      "The Free plan includes 50 labels per month: 47 left this month, 60 requested. Change plans in the Plans tab.",
+    expect(translate("en", new PlanLimitError("unlimited_labels", " : il en reste 247 ce mois-ci, 260 demandées").message)).toBe(
+      "The Free plan includes 250 labels per month: 247 left this month, 260 requested. Change plans in the Plans tab.",
     );
     expect(translate("en", new PlanLimitError("pos").message)).toBe("Labels from POS are part of the Store plan. Change plans in the Plans tab.");
     expect(translate("en", "#1002 : 12 articles ajoutés, 2 article(s) supprimé(s) ignoré(s).")).toBe("#1002: 12 items added, 2 deleted item(s) skipped.");

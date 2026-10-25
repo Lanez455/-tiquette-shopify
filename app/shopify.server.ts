@@ -7,7 +7,7 @@ import {
 } from "@shopify/shopify-app-react-router/server";
 import { PrismaSessionStorage } from "@shopify/shopify-app-session-storage-prisma";
 import prisma from "./db.server";
-import { MAGASIN, PLAN_PRICES, PRO } from "./lib/billing/plans";
+import { MAGASIN, MAGASIN_ANNUAL, PLAN_PRICES, PRO, PRO_ANNUAL, TRIAL_DAYS } from "./lib/billing/plans";
 
 const shopify = shopifyApp({
   apiKey: process.env.SHOPIFY_API_KEY,
@@ -19,10 +19,12 @@ const shopify = shopifyApp({
   authPathPrefix: "/auth",
   sessionStorage: new PrismaSessionStorage(prisma),
   distribution: AppDistribution.AppStore,
-  // Formules payantes (le Gratuit n'a pas d'abonnement)
+  // Formules payantes (le Gratuit n'a pas d'abonnement) ; l'essai restant est recalculé à chaque demande
   billing: {
-    [PRO]: { lineItems: [{ amount: PLAN_PRICES[PRO], currencyCode: "USD", interval: BillingInterval.Every30Days }] },
-    [MAGASIN]: { lineItems: [{ amount: PLAN_PRICES[MAGASIN], currencyCode: "USD", interval: BillingInterval.Every30Days }] },
+    [PRO]: { trialDays: TRIAL_DAYS, lineItems: [{ amount: PLAN_PRICES[PRO], currencyCode: "USD", interval: BillingInterval.Every30Days }] },
+    [MAGASIN]: { trialDays: TRIAL_DAYS, lineItems: [{ amount: PLAN_PRICES[MAGASIN], currencyCode: "USD", interval: BillingInterval.Every30Days }] },
+    [PRO_ANNUAL]: { trialDays: TRIAL_DAYS, lineItems: [{ amount: PLAN_PRICES[PRO_ANNUAL], currencyCode: "USD", interval: BillingInterval.Annual }] },
+    [MAGASIN_ANNUAL]: { trialDays: TRIAL_DAYS, lineItems: [{ amount: PLAN_PRICES[MAGASIN_ANNUAL], currencyCode: "USD", interval: BillingInterval.Annual }] },
   },
   future: { expiringOfflineAccessTokens: true },
   ...(process.env.SHOP_CUSTOM_DOMAIN
