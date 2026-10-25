@@ -46,5 +46,35 @@ Critères de validation : voir docs/SPEC.md. Tout est écrit et testé (tests au
 - [x] Nouveaux prix, paiement à l'année, 14 jours d'essai
 - [x] Demande d'avis App Store après la 3e impression
 
-## Version 1.2.0 (prévue après la 1.1.0)
+## Version 1.2.0 : comptage du stock (prévue après la 1.1.0)
 - [ ] Comptage d'inventaire par scan, dans la formule Magasin : compter un magasin entier ou par fournisseur, type ou tag ; scan au téléphone, à la douchette ou à la caméra ; écarts avec photos à valider avant de mettre à jour le stock Shopify ; ventes faites pendant le comptage prises en compte. Concurrence relevée le 25/10/2026 : BR Stock Take (3,5 ★, 30 avis, 14,99 $ et 24,99 $), CountKit (sorti en octobre 2026, 3,99 $ et 7,99 $).
+- [ ] Comptage enregistré au fur et à mesure : rien n'est perdu si la page se ferme.
+
+Plan détaillé et sources : document « Etiqo : plan jusqu'à la 2.0 » (avis négatifs des concurrents et fermeture de Stocky le 31/08/2026).
+
+## Version 1.3.0 : réassort (remplacer Stocky)
+- [ ] Stock minimum et maximum par produit
+- [ ] Bons de commande proposés automatiquement sous le minimum (vérifier d'abord si l'API permet de créer un bon de commande ; sinon brouillon PDF ou CSV pour le fournisseur ; tout nouveau scope demandé à Yanis avant)
+- [ ] Fournisseurs avec leurs codes, import CSV des bons de commande
+- [ ] Import des données exportées de Stocky
+
+## Version 1.4.0 : confiance
+- [ ] Historique des modèles et retour à une version précédente
+- [ ] Message clair dans l'app avant chaque changement
+- [ ] Aide et contact dans l'app, réponse sous 24 h
+- [ ] Mode essai : voir ce qu'un comptage ou un réassort changerait sans l'appliquer
+
+## Version 1.5.0 : Europe
+- [ ] Allemand, espagnol, italien
+- [ ] Planches A4 européennes (Herma, Avery Zweckform)
+- [ ] Codes-barres à prix ou poids intégré (EAN-13 commençant par 2)
+
+## Version 1.6.0 : prévisions simples
+- [ ] Ventes par jour et jours de stock restants
+- [ ] Alerte hebdomadaire par e-mail des ruptures à venir
+- [ ] Coût d'achat et marge par produit
+
+## Version 2.0.0 : le magasin complet
+- [ ] Tableau de bord unique : à imprimer, à compter, à commander, à recevoir
+- [ ] Liaison avec Shopify Flow (déclencheurs et actions)
+- [ ] Formule « Store Plus » possible (prévisions, plusieurs magasins) ; formules existantes inchangées pour les abonnés
