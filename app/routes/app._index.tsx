@@ -2,6 +2,7 @@ import { useState } from "react";
 import type { LoaderFunctionArgs } from "react-router";
 import { useLoaderData } from "react-router";
 import prisma from "../db.server";
+import { NEWS } from "../lib/news";
 import { authenticate } from "../shopify.server";
 import { pdfUrl, printPdfUrl, requestPrint } from "../lib/print/client";
 import { FREE_MONTHLY_LABELS, PLAN_NAMES, currentPlan } from "../lib/billing/plans";
@@ -193,6 +194,16 @@ export default function Home() {
             </s-table-body>
           </s-table>
         )}
+      </s-section>
+      <s-section heading={t("Nouveautés")}>
+        {NEWS.slice(0, 1).map((n) => (
+          <s-stack key={n.version} gap="base">
+            <s-text type="strong">{t("Version {version}", { version: n.version })}</s-text>
+            <s-unordered-list>
+              {n.items.map((item) => <s-list-item key={item}>{t(item)}</s-list-item>)}
+            </s-unordered-list>
+          </s-stack>
+        ))}
       </s-section>
     </s-page>
   );

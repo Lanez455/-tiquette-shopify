@@ -176,9 +176,9 @@ Il faut une version gratuite pour attirer les déçus de l'app officielle, qui e
 
 | Formule | Prix | Contenu |
 | --- | --- | --- |
-| Gratuit | 0 $ | 50 étiquettes par mois, formats prêts, 1 modèle personnalisé, codes-barres uniques |
-| Pro | 9,99 $ par mois | Étiquettes illimitées, éditeur complet, modèles illimités, bons de commande, transferts, CSV |
-| Magasin | 19,99 $ par mois | Tout Pro, plus plusieurs magasins, tuile en caisse, historique d'impression, support prioritaire , impression directe Zebra et Dymo, réception par scan |
+| Gratuit | 0 $ | 250 étiquettes par mois (50 jusqu'à la 1.0.0), bons de commande et transferts (depuis la 1.1.0), formats prêts, 1 modèle personnalisé, codes-barres uniques |
+| Pro | 7,99 $ par mois ou 79 $ par an, 14 jours d'essai | Étiquettes illimitées, éditeur complet, modèles illimités, CSV |
+| Magasin | 17,99 $ par mois ou 179 $ par an, 14 jours d'essai | Tout Pro, plus plusieurs magasins, tuile en caisse, historique d'impression, support prioritaire , impression directe Zebra et Dymo, réception par scan |
 
 Avec un abonnement annuel à –20 %, la moyenne visée est d'environ 12 $ par boutique payante.
 

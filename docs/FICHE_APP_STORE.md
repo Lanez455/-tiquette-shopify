@@ -15,7 +15,7 @@ Règles de Shopify à respecter sur toute la fiche : pas de prix ni d'avis dans 
 | Langues de l'app | Anglais, français |
 | Politique de confidentialité | https://etiqo-barcode-labels.fly.dev/confidentialite |
 | E-mail de support | YanisLanez@outlook.com |
-| Prix | Gratuit (50 étiquettes / mois), Pro 9,99 $ / mois, Magasin 19,99 $ / mois |
+| Prix (à partir de la 1.1.0, à changer sur la fiche le jour de la mise en ligne) | Gratuit (250 étiquettes / mois, bons de commande compris), Pro 7,99 $ / mois ou 79 $ / an, Magasin 17,99 $ / mois ou 179 $ / an, 14 jours d'essai |
 
 ## Textes en anglais (obligatoires)
 
@@ -114,7 +114,7 @@ Règles de Shopify à respecter sur toute la fiche : pas de prix ni d'avis dans 
 | | Search terms | barcode labels · label printer · price tags · dymo zebra · inventory labels |
 | Listing content | Support | E-mail : YanisLanez@outlook.com |
 | | Resources | Privacy policy : https://etiqo-barcode-labels.fly.dev/confidentialite |
-| Pricing | Plans | Free 0 $ · Pro 9,99 $/mois · Store 19,99 $/mois (textes plus haut) |
+| Pricing | Plans | 1.1.0 : Free 0 $ (250 labels/month, purchase orders included) · Pro $7.99/month or $79/year · Store $17.99/month or $179/year · 14-day free trial |
 | Install requirements | Sales channel | Aucun canal obligatoire (ni boutique en ligne ni POS) |
 | Contact | Merchant review email / App submission email | YanisLanez@outlook.com |
 | App testing | Test account | Non nécessaire : l'app est intégrée à l'admin et utilise la session Shopify |

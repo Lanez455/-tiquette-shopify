@@ -9,12 +9,22 @@ import { FakeShop } from "../../app/testing/fakeShop";
 const [, , keyPath, certPath, portArg] = process.argv;
 
 class MockShop extends FakeShop {
-  subscriptions: { id: string; name: string; status: string; test: boolean }[] = [];
+  subscriptions: { id: string; name: string; status: string; test: boolean; createdAt: string }[] = [];
   // Nombre de prochaines requêtes à refuser en THROTTLED
   throttleNext = 0;
 
   opActiveSubscriptions() {
     return { currentAppInstallation: { activeSubscriptions: this.subscriptions.filter((s) => s.status === "ACTIVE").map(({ name, status }) => ({ name, status })) } };
+  }
+
+  // Accueil : nombre de variantes du catalogue
+  opHomeVariantsCount() {
+    return { productVariantsCount: { count: this.variants.size } };
+  }
+
+  // Essai restant (page Formules)
+  opAllSubscriptions() {
+    return { currentAppInstallation: { allSubscriptions: { nodes: this.subscriptions.map(({ status, createdAt }) => ({ status, createdAt })) } } };
   }
 
   // Requête de la bibliothèque Shopify (billing.check)
@@ -75,7 +85,7 @@ if (keyPath && certPath) {
     if (url.pathname === "/__mock/state") return json(200, { log, subscriptions: shop.subscriptions, barcodes: Object.fromEntries([...shop.variants].map(([id, v]) => [id, v.barcode])) });
     if (url.pathname === "/__mock/throttle") { shop.throttleNext = Number(url.searchParams.get("n") ?? 1); return json(200, { ok: true }); }
     if (url.pathname === "/__mock/subscribe") {
-      shop.subscriptions = [{ id: "gid://shopify/AppSubscription/1", name: url.searchParams.get("plan") ?? "Magasin", status: "ACTIVE", test: true }];
+      shop.subscriptions = [{ id: "gid://shopify/AppSubscription/1", name: url.searchParams.get("plan") ?? "Magasin", status: "ACTIVE", test: true, createdAt: new Date().toISOString() }];
       return json(200, { ok: true });
     }
 

@@ -162,7 +162,7 @@ async function main() {
 
   console.log("Version anglaise (admin Shopify en anglais)");
   for (const [path, expected] of [
-    ["/app", "Recent print jobs"], ["/app/print", "Add products"], ["/app/templates", "Your templates"], ["/app/barcodes", "Catalog coverage"],
+    ["/app", "Recent print jobs"], ["/app/print", "Add products"], ["/app/templates", "Your custom templates"], ["/app/barcodes", "Catalog coverage"],
     ["/app/settings", "Print method"], ["/app/receive", "Scan-to-receive"], ["/app/promos", "Price changes"], ["/app/plans", "Current plan"], ["/app/help", "Margins: none."],
   ] as const) {
     await check(`GET ${path} en anglais`, async () => {
@@ -205,10 +205,10 @@ async function main() {
     return `${body.groups[0]!.labelCount} étiquettes, ${pdf.length} octets`;
   });
 
-  await check("Quota Gratuit : 60 étiquettes refusées avec un message clair", async () => {
-    const res = await printPdf({ lines: [{ variantId: "gid://shopify/ProductVariant/21", quantity: 60 }], templateId: "builtin:dymo-30336" });
+  await check("Quota Gratuit : 300 étiquettes refusées avec un message clair", async () => {
+    const res = await printPdf({ lines: [{ variantId: "gid://shopify/ProductVariant/21", quantity: 300 }], templateId: "builtin:dymo-30336" });
     const body = (await res.json()) as { error?: string };
-    assert(res.status === 402 && /50 étiquettes par mois/.test(body.error ?? ""), `statut ${res.status} ${body.error}`);
+    assert(res.status === 402 && /250 étiquettes par mois/.test(body.error ?? ""), `statut ${res.status} ${body.error}`);
     return body.error!;
   });
 
@@ -217,12 +217,22 @@ async function main() {
     assert(res.status === 402, `statut ${res.status}`);
   });
 
-  // Passage à la formule Magasin chez Shopify, puis retour sur la page Formules
-  await mock("/__mock/subscribe?plan=Magasin");
-  await check("Après abonnement, la page Formules affiche Magasin", async () => {
+  await check("Page Formules : paiement à l'année et 14 jours d'essai", async () => {
     const html = await (await fetch(embedded("/app/plans"))).text();
-    assert(/Formule actuelle : (<!-- -->)?Magasin/.test(html), "formule non mise à jour");
+    assert(/Ou (<!-- -->)?79(<!-- -->)? \$ par an/.test(html), "prix annuel absent");
+    assert(/14(<!-- -->)? jours d&#x27;essai gratuit|14(<!-- -->)? jours d'essai gratuit/.test(html), "essai absent");
+    assert(/Choisir Pro à l&#x27;année|Choisir Pro à l'année/.test(html), "bouton annuel absent");
   });
+
+  // Passage à la formule Magasin chez Shopify, puis retour sur la page Formules
+  // (ancien nom « Magasin » d'abord, puis « Store », le nom affiché chez Shopify)
+  for (const name of ["Magasin", "Store"]) {
+    await mock(`/__mock/subscribe?plan=${name}`);
+    await check(`Après abonnement « ${name} », la page Formules affiche Magasin`, async () => {
+      const html = await (await fetch(embedded("/app/plans"))).text();
+      assert(/Formule actuelle : (<!-- -->)?Magasin/.test(html), "formule non mise à jour");
+    });
+  }
 
   await check("Magasin : impression directe Zebra (ZPL)", async () => {
     const res = await printPdf({ lines: [{ variantId: "gid://shopify/ProductVariant/11", quantity: 1 }], templateId: "builtin:zebra-2x1", output: "zpl" });
