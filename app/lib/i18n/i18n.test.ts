@@ -20,7 +20,7 @@ function files(dir: string): string[] {
 const FRENCH = /[àâçéèêëîïôûùœÉÈÀ«»]|\b(le|la|les|des|du|un|une|aucun|aucune|pour|sur|dans|avec|est|sont|ou|et)\b/i;
 const NOT_TEXT = /^\s*(#graphql|query |mutation |fragment )|gid:\/\/|^[\w.:/-]+$|^\{"/;
 // Données, pas des phrases : alias de colonnes CSV, noms d'exemple
-const IGNORED = new Set(["code-barres", "code barres", "code-barre", "code barre", "référence", "id variante", "Boucles d'oreilles créoles argent 925", "Argent", "Atelier Lune", "Bijoux", "29,90 €", "39,90 €", "fr-FR", "Expédition"]);
+const IGNORED = new Set(["code-barres", "code barres", "code-barre", "code barre", "référence", "id variante", "Boucles d'oreilles créoles argent 925", "Boucles d'oreilles créoles argent 925 · Argent", "Argent", "Atelier Lune", "Bijoux", "29,90 €", "39,90 €", "fr-FR", "Expédition"]);
 
 function frenchTexts(path: string): { found: string[]; keys: string[] } {
   const source = ts.createSourceFile(path, readFileSync(path, "utf8"), ts.ScriptTarget.Latest, true, path.endsWith("x") ? ts.ScriptKind.TSX : ts.ScriptKind.TS);

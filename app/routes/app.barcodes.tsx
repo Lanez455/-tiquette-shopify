@@ -156,15 +156,15 @@ export default function Barcodes() {
           <input type="hidden" name="intent" value="gs1-import" />
           <input type="hidden" name="lang" value={lang} />
           <s-text-area name="gtins" label={t("GTIN (un par ligne, ou « SKU;GTIN »)")} rows={6}></s-text-area>
-          <input
-            type="file"
+          <s-drop-zone
+            label={t("Ou importez un fichier CSV")}
             accept=".csv,.txt,text/csv"
             onChange={async (e) => {
               const file = e.currentTarget.files?.[0];
-              const area = e.currentTarget.form?.querySelector<HTMLElement & { value: string }>("s-text-area");
+              const area = e.currentTarget.closest("form")?.querySelector<HTMLElement & { value: string }>("s-text-area");
               if (file && area && file.size < 2_000_000) area.value = await file.text();
             }}
-          />
+          ></s-drop-zone>
           {result && "needsConfirmation" in result && (
             <s-text-field name="confirmation" label={t("Confirmation du remplacement")} autocomplete="off"></s-text-field>
           )}

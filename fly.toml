@@ -1,6 +1,6 @@
 # Configuration Fly.io. Remplacez « etiquettes-codes-barres » par le nom choisi
 # avec `fly launch` (voir docs/DEPLOIEMENT.md).
-app = "etiquettes-codes-barres"
+app = "etiqo-barcode-labels"
 primary_region = "cdg"
 
 [build]
@@ -10,7 +10,7 @@ primary_region = "cdg"
   PORT = "3000"
   # La base SQLite vit sur le volume monté en /data : elle survit aux redémarrages
   DATABASE_URL = "file:/data/prod.sqlite"
-  SCOPES = "read_products,write_products,read_inventory,write_inventory,read_locations,read_inventory_purchase_orders,read_inventory_transfers"
+  SCOPES = "read_products,write_products,read_inventory,write_inventory,read_locations,read_inventory_purchase_orders,read_inventory_transfers,read_locales"
 
 [[mounts]]
   source = "donnees"

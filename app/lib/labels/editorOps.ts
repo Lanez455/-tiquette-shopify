@@ -74,6 +74,7 @@ export function addElement(layout: LabelTemplateLayout, what: NewElement, bounds
 
 export const FIELD_LABELS: Record<string, string> = {
   title: "Titre du produit",
+  titleWithVariant: "Titre et variante",
   variantTitle: "Variante",
   sku: "SKU",
   price: "Prix",
@@ -86,6 +87,7 @@ export const FIELD_LABELS: Record<string, string> = {
 // Données d'exemple pour l'aperçu de l'éditeur
 export const SAMPLE: Record<string, string> = {
   title: "Boucles d'oreilles créoles argent 925",
+  titleWithVariant: "Boucles d'oreilles créoles argent 925 · Argent",
   variantTitle: "Argent",
   sku: "BO-LUNE-925",
   price: "29,90 €",
@@ -97,6 +99,7 @@ export const SAMPLE: Record<string, string> = {
 
 export const SAMPLE_EN: Record<string, string> = {
   title: "Sterling silver hoop earrings",
+  titleWithVariant: "Sterling silver hoop earrings · Silver",
   variantTitle: "Silver",
   sku: "BO-LUNE-925",
   price: "$29.90",

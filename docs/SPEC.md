@@ -128,6 +128,7 @@ Tout ce dont la version finale a besoin existe aujourd'hui chez Shopify. La lect
 | `read_inventory_purchase_orders` | Imprimer depuis un bon de commande fournisseur (F14) |
 | `read_inventory_transfers` | Imprimer depuis un transfert de stock (F14) |
 | write_inventory | Mettre à jour le stock lors de la réception par scan (F18) |
+| `read_locales` | Écrire les prix dans la langue principale de la boutique |
 
 **Points d'entrée dans Shopify**
 
@@ -257,7 +258,7 @@ Tu es mon développeur. On construit ensemble une app Shopify publique d'étique
 Contraintes techniques :
 - Modèle d'app officiel généré par la CLI Shopify, interface Polaris, intégrée à l'administration.
 - API GraphQL Admin version 2026-10 minimum.
-- Scopes : read_products, write_products, read_inventory, write_inventory, read_locations, read_inventory_purchase_orders, read_inventory_transfers.
+- Scopes : read_products, write_products, read_inventory, write_inventory, read_locations, read_inventory_purchase_orders, read_inventory_transfers, read_locales.
 - Impression : PDF généré à la taille exacte de l'étiquette, ouvert dans la fenêtre d'impression. Impression directe sur ordinateur via Zebra Browser Print (ZPL) et DYMO Connect, avec repli sur le PDF (toujours le PDF sur iPad).
 - Codes-barres : bibliothèque éprouvée (Code 128, EAN-13, UPC-A). Ne jamais dériver un code de l'identifiant de variante. Vérifier l'unicité dans tout le catalogue avant d'écrire. Ne jamais modifier un code existant sans confirmation explicite, et journaliser chaque changement. Ne jamais inventer de GTIN : seulement ceux importés par le marchand.
 
@@ -309,7 +310,7 @@ Trois textes suffisent : un fichier de règles que Claude Code relit à chaque s
 ## Stack
 - Modèle d'app officiel généré par la CLI Shopify, interface Polaris, intégrée à l'administration.
 - API GraphQL Admin version 2026-10 minimum (lecture des bons de commande).
-- Scopes : read_products, write_products, read_inventory, write_inventory, read_locations, read_inventory_purchase_orders, read_inventory_transfers.
+- Scopes : read_products, write_products, read_inventory, write_inventory, read_locations, read_inventory_purchase_orders, read_inventory_transfers, read_locales.
 - Base de données : celle du modèle en développement, PostgreSQL en production.
 - Impression : PDF à la taille exacte de l'étiquette par défaut ; impression directe sur ordinateur via Zebra Browser Print (ZPL) et DYMO Connect, repli sur le PDF (toujours le PDF sur iPad). Codes-barres : bibliothèque éprouvée (Code 128, EAN-13, UPC-A).
 - Extensions : impression dans la fiche et la liste produits de l'administration, tuile dans l'app de caisse.

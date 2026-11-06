@@ -78,36 +78,83 @@ export default function Templates() {
   const lang = useLang();
   const data = useLoaderData<typeof loader>();
   const result = useActionData<typeof action>();
+  const custom = data.templates.filter((tpl) => !tpl.builtin);
+  const builtin = data.templates.filter((tpl) => tpl.builtin);
+
+  const makeDefault = (id: string) => (
+    <Form method="post">
+      <input type="hidden" name="intent" value="default" />
+      <input type="hidden" name="templateId" value={id} />
+      <s-button type="submit" variant="tertiary">{t("Utiliser par défaut")}</s-button>
+    </Form>
+  );
+  const defaultBadge = <s-badge tone="success">{t("Par défaut")}</s-badge>;
+
   return (
     <s-page heading={t("Modèles")}>
       {result && "error" in result && <s-banner tone="critical">{t(result.error)}</s-banner>}
       {result && "message" in result && <s-banner tone="success">{t(result.message)}</s-banner>}
 
-      <s-section heading={t("Vos modèles")}>
+      <s-section heading={t("Vos modèles personnalisés")}>
+        <s-paragraph>
+          {t("Vos propres mises en page : modifiez-les dans l'éditeur, et associez-les à des collections pour qu'elles soient choisies automatiquement.")}
+        </s-paragraph>
+        {custom.length === 0 ? (
+          <s-paragraph>{t("Aucun modèle personnalisé. Partez d'un format prêt ci-dessous avec « Personnaliser ».")}</s-paragraph>
+        ) : (
+          <s-table>
+            <s-table-header-row>
+              <s-table-header>{t("Nom")}</s-table-header>
+              <s-table-header>{t("Taille")}</s-table-header>
+              <s-table-header>{t("Règles automatiques")}</s-table-header>
+              <s-table-header></s-table-header>
+            </s-table-header-row>
+            <s-table-body>
+              {custom.map((tpl) => (
+                <s-table-row key={tpl.id}>
+                  <s-table-cell>
+                    <s-link href={`/app/templates/${tpl.id}`}>{tpl.name}</s-link>
+                  </s-table-cell>
+                  <s-table-cell>{tpl.size}</s-table-cell>
+                  <s-table-cell>{tpl.collections ? t(tpl.collections === 1 ? "1 collection" : "{n} collections", { n: tpl.collections }) : t("Aucune")}</s-table-cell>
+                  <s-table-cell>
+                    <s-stack direction="inline" gap="small" alignItems="center">
+                      <s-button variant="tertiary" href={`/app/templates/${tpl.id}`}>{t("Modifier")}</s-button>
+                      {tpl.id === data.defaultTemplateId ? defaultBadge : makeDefault(tpl.id)}
+                    </s-stack>
+                  </s-table-cell>
+                </s-table-row>
+              ))}
+            </s-table-body>
+          </s-table>
+        )}
+      </s-section>
+
+      <s-section heading={t("Formats prêts")}>
+        <s-paragraph>
+          {t("Mises en page fournies par l'app, prêtes à imprimer. Pour changer la position ou les champs, cliquez sur « Personnaliser » : une copie modifiable est créée.")}
+        </s-paragraph>
         <s-table>
           <s-table-header-row>
-            <s-table-header>{t("Nom")}</s-table-header>
+            <s-table-header>{t("Format")}</s-table-header>
             <s-table-header>{t("Taille")}</s-table-header>
-            <s-table-header>{t("Collections")}</s-table-header>
             <s-table-header></s-table-header>
           </s-table-header-row>
           <s-table-body>
-            {data.templates.map((tpl) => (
+            {builtin.map((tpl) => (
               <s-table-row key={tpl.id}>
-                <s-table-cell>
-                  {tpl.builtin ? t(tpl.name) : <s-link href={`/app/templates/${tpl.id}`}>{tpl.name}</s-link>}
-                  {tpl.id === data.defaultTemplateId && ` ${t("(par défaut)")}`}
-                </s-table-cell>
+                <s-table-cell>{t(tpl.name)}</s-table-cell>
                 <s-table-cell>{tpl.size}</s-table-cell>
-                <s-table-cell>{tpl.collections || ""}</s-table-cell>
                 <s-table-cell>
-                  {tpl.id !== data.defaultTemplateId && (
+                  <s-stack direction="inline" gap="small" alignItems="center">
                     <Form method="post">
-                      <input type="hidden" name="intent" value="default" />
-                      <input type="hidden" name="templateId" value={tpl.id} />
-                      <s-button type="submit" variant="tertiary">{t("Par défaut")}</s-button>
+                      <input type="hidden" name="intent" value="format" />
+                      <input type="hidden" name="lang" value={lang} />
+                      <input type="hidden" name="formatId" value={tpl.id.slice("builtin:".length)} />
+                      <s-button type="submit" variant="tertiary">{t("Personnaliser")}</s-button>
                     </Form>
-                  )}
+                    {tpl.id === data.defaultTemplateId ? defaultBadge : makeDefault(tpl.id)}
+                  </s-stack>
                 </s-table-cell>
               </s-table-row>
             ))}

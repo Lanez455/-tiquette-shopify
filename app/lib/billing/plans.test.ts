@@ -6,8 +6,10 @@ describe("formules Gratuit, Pro, Magasin", () => {
   it("lit la formule active", () => {
     expect(planFromSubscriptions([])).toBe("free");
     expect(planFromSubscriptions([{ name: "Pro", status: "ACTIVE" }])).toBe("pro");
-    expect(planFromSubscriptions([{ name: "Magasin", status: "ACTIVE" }, { name: "Pro", status: "CANCELLED" }])).toBe("store");
-    expect(planFromSubscriptions([{ name: "Magasin", status: "PENDING" }])).toBe("free");
+    expect(planFromSubscriptions([{ name: "Store", status: "ACTIVE" }, { name: "Pro", status: "CANCELLED" }])).toBe("store");
+    // Abonnements créés avant le changement de nom
+    expect(planFromSubscriptions([{ name: "Magasin", status: "ACTIVE" }])).toBe("store");
+    expect(planFromSubscriptions([{ name: "Store", status: "PENDING" }])).toBe("free");
   });
 
   it("Gratuit : 50 étiquettes par mois, pas une de plus", () => {
@@ -37,7 +39,7 @@ describe("formules Gratuit, Pro, Magasin", () => {
     (shop as unknown as Record<string, unknown>).opActiveSubscriptions = () => ({ currentAppInstallation: { activeSubscriptions: subs } });
     forgetPlan("s");
     expect(await currentPlan(shop.gql, "s", 0)).toBe("pro");
-    subs[0]!.name = "Magasin";
+    subs[0]!.name = "Store";
     expect(await currentPlan(shop.gql, "s", 30_000)).toBe("pro");
     expect(await currentPlan(shop.gql, "s", 61_000)).toBe("store");
   });

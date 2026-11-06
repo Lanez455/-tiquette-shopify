@@ -1,54 +1,43 @@
-import { useState } from "react";
-import { Form, useActionData, useLoaderData, type ActionFunctionArgs, type LoaderFunctionArgs } from "react-router";
+import { useLoaderData, type LoaderFunctionArgs } from "react-router";
 import { AppProvider } from "@shopify/shopify-app-react-router/react";
-import { LoginErrorType } from "@shopify/shopify-app-react-router/server";
 import { login } from "../shopify.server";
 import { langFromRequest } from "../lib/i18n";
 import { I18nProvider, useT } from "../lib/i18n/react";
 
-function errorMessage(errors: Awaited<ReturnType<typeof login>> | undefined) {
-  if (!errors || errors instanceof Response) return undefined;
-  if (errors.shop === LoginErrorType.MissingShop) return "Indiquez l'adresse de la boutique.";
-  if (errors.shop === LoginErrorType.InvalidShop) return "Adresse de boutique invalide.";
-  return undefined;
-}
-
-export const loader = async ({ request }: LoaderFunctionArgs) => ({ error: errorMessage(await login(request)), lang: langFromRequest(request) });
-export const action = async ({ request }: ActionFunctionArgs) => ({ error: errorMessage(await login(request)) });
+// Règle de l'App Store : ne jamais demander au marchand de saisir l'adresse de
+// sa boutique. Avec ?shop=…, login() redirige vers l'installation gérée par
+// Shopify ; sinon, on explique où ouvrir l'app.
+export const loader = async ({ request }: LoaderFunctionArgs) => {
+  if (new URL(request.url).searchParams.get("shop")) await login(request);
+  return { lang: langFromRequest(request) };
+};
 
 export default function Login() {
   const { lang } = useLoaderData<typeof loader>();
   return (
     <I18nProvider lang={lang}>
-      <LoginForm />
+      <OpenFromAdmin />
     </I18nProvider>
   );
 }
 
-function LoginForm() {
+function OpenFromAdmin() {
   const t = useT();
-  const loaderData = useLoaderData<typeof loader>();
-  const actionData = useActionData<typeof action>();
-  const [shop, setShop] = useState("");
-  const error = actionData?.error ?? loaderData.error;
-
   return (
     <AppProvider apiKey="">
-      <s-page>
-        <Form method="post">
-          <s-section heading={t("Connexion")}>
-            <s-text-field
-              name="shop"
-              label={t("Adresse de la boutique")}
-              details={t("exemple.myshopify.com")}
-              value={shop}
-              onChange={(e) => setShop(e.currentTarget.value)}
-              autocomplete="on"
-              error={t(error)}
-            ></s-text-field>
-            <s-button type="submit">{t("Se connecter")}</s-button>
-          </s-section>
-        </Form>
+      <s-page heading="Etiqo Barcode Labels">
+        <s-section heading={t("Ouvrez Etiqo depuis votre administration Shopify")}>
+          <s-paragraph>
+            {t("Dans l'administration de votre boutique, allez dans Applications, puis choisissez Etiqo Barcode Labels.")}
+          </s-paragraph>
+          <s-paragraph>
+            {t("Pas encore installée ? Ajoutez-la depuis l'App Store de Shopify.")}{" "}
+            <s-link href="https://apps.shopify.com" target="_blank">apps.shopify.com</s-link>
+          </s-paragraph>
+          <s-paragraph>
+            <s-link href="/confidentialite">{t("Politique de confidentialité")}</s-link>
+          </s-paragraph>
+        </s-section>
       </s-page>
     </AppProvider>
   );

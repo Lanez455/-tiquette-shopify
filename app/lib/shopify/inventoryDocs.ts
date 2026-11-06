@@ -18,7 +18,9 @@ export interface InventoryDoc {
 
 const RECENT_DOCS = `#graphql
   query RecentInventoryDocs {
-    inventoryPurchaseOrders(last: 25) {
+    # « last » sans curseur est refusé ici (BAD_REQUEST) : on lit les premiers
+    # et on garde les plus récents après le tri par date
+    inventoryPurchaseOrders(first: 100) {
       nodes { id name status dateCreated }
     }
     inventoryTransfers(first: 25, reverse: true) {
@@ -35,7 +37,7 @@ export async function listInventoryDocs(gql: Gql): Promise<InventoryDoc[]> {
     ...data.inventoryPurchaseOrders.nodes.map((n) => ({ ...n, kind: "purchase_order" as const })),
     ...data.inventoryTransfers.nodes.map((n) => ({ ...n, kind: "transfer" as const })),
   ];
-  return docs.sort((a, b) => (b.dateCreated ?? "").localeCompare(a.dateCreated ?? ""));
+  return docs.sort((a, b) => (b.dateCreated ?? "").localeCompare(a.dateCreated ?? "")).slice(0, 50);
 }
 
 const LINE_FIELDS = `

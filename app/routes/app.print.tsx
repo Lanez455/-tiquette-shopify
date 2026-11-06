@@ -39,6 +39,14 @@ async function linesFor(gql: Gql, ids: string[], setting: DefaultQuantity, quant
   }));
 }
 
+// Lignes affichées par page : une file de plusieurs centaines de variantes reste lisible
+const PAGE_SIZE = 50;
+
+const labelCount = (n: number) => (n === 1 ? "1 étiquette" : "{n} étiquettes");
+
+const matches = (l: Line, query: string) =>
+  `${l.title} ${l.variantTitle} ${l.sku} ${l.barcode}`.toLowerCase().includes(query);
+
 const asSetting = (value: string): DefaultQuantity => (value === "one" || value === "stock" ? value : "zero");
 
 // Ouvert depuis l'admin (extension d'impression) avec ?ids=…, ou vide
@@ -56,7 +64,12 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
     given = [];
   }
   // Bons de commande et transferts récents (F14) ; absents si l'accès n'est pas accordé
-  const docs: InventoryDoc[] = await listInventoryDocs(gqlFromAdmin(admin)).catch(() => []);
+  const docs: InventoryDoc[] = await listInventoryDocs(gqlFromAdmin(admin)).catch((error) => {
+    // Sans cette trace, une liste vide ne dit pas pourquoi (accès, version de l'API…)
+    const detail = (error as { body?: { errors?: { graphQLErrors?: unknown } } })?.body?.errors?.graphQLErrors;
+    console.error("Inventory purchase orders and transfers unreadable", JSON.stringify(detail ?? String(error)));
+    return [];
+  });
   return {
     docs,
     lines: given.length
@@ -152,6 +165,8 @@ export default function Print() {
   const [docId, setDocId] = useState("");
   const [message, setMessage] = useState<{ tone: "success" | "critical" | "warning"; text: string } | null>(null);
   const [preview, setPreview] = useState<string | null>(null);
+  const [query, setQuery] = useState("");
+  const [page, setPage] = useState(0);
 
   // Ajoute les lignes reçues ; un article déjà présent prend la quantité du document
   useEffect(() => {
@@ -172,7 +187,8 @@ export default function Print() {
         .map((p) => t("ligne {line}{key} : {message}", { line: p.line, key: p.key ? ` (${p.key})` : "", message: t(p.message) }))
         .join(" ; ");
       setMessage({
-        tone: problems.length ? "warning" : "success",
+        // Rien d'ajouté (formule, document vide) : c'est un avertissement, pas une réussite
+        tone: problems.length || result.lines.length === 0 ? "warning" : "success",
         text: `${t(result.notice)}${problems.length ? ` ${t("{n} ligne(s) à revoir :", { n: problems.length })} ${detail}${problems.length > 8 ? " ; …" : ""}` : ""}`,
       });
     }
@@ -185,6 +201,15 @@ export default function Print() {
   }
 
   const total = useMemo(() => lines.reduce((sum, l) => sum + l.quantity, 0), [lines]);
+  const toPrint = useMemo(() => lines.filter((l) => l.quantity > 0).length, [lines]);
+  const visible = useMemo(() => {
+    const q = query.trim().toLowerCase();
+    return q ? lines.filter((l) => matches(l, q)) : lines;
+  }, [lines, query]);
+  const pages = Math.max(1, Math.ceil(visible.length / PAGE_SIZE));
+  const currentPage = Math.min(page, pages - 1);
+  const shown = visible.slice(currentPage * PAGE_SIZE, (currentPage + 1) * PAGE_SIZE);
+  const remove = (variantId: string) => setLines((ls) => ls.filter((l) => l.variantId !== variantId));
   const isSheet = data.templates.find((t) => t.id === templateId)?.sheet ?? false;
   const setQuantity = (variantId: string, quantity: number) =>
     setLines((ls) => ls.map((l) => (l.variantId === variantId ? { ...l, quantity: Math.max(0, Math.min(MAX_PER_LINE, Math.floor(quantity) || 0)) } : l)));
@@ -220,10 +245,12 @@ export default function Print() {
   const done = (count: number, warnings: string[], note = "") => {
     setMessage({
       tone: warnings.length || note ? "warning" : "success",
-      text: `${t("{n} étiquettes envoyées à l'impression.", { n: count })}${note ? ` ${note}` : ""}${warnings.length ? ` ${warnings.map((w) => t(w)).join(". ")}.` : ""}`,
+      text: `${t(count === 1 ? "1 étiquette envoyée à l'impression." : "{n} étiquettes envoyées à l'impression.", { n: count })}${note ? ` ${note}` : ""}${warnings.length ? ` ${warnings.map((w) => t(w)).join(". ")}.` : ""}`,
     });
     // La file se vide après chaque impression (F16) ; elle reste dans l'historique
     setLines([]);
+    setQuery("");
+    setPage(0);
     setSource("product");
     if (params.has("ids") || params.has("lines")) setParams({});
   };
@@ -301,15 +328,31 @@ export default function Print() {
               </s-button>
             </>
           )}
-          <label>
-            {t("Importer un CSV (code-barres ou SKU, quantité)")}{" "}
-            <input type="file" accept=".csv,.txt,text/csv" onChange={(e) => importCsv(e.currentTarget.files?.[0])} />
-          </label>
         </s-stack>
+        <s-drop-zone
+          label={t("Importer un CSV (code-barres ou SKU, quantité)")}
+          accept=".csv,.txt,text/csv"
+          onChange={(e) => importCsv(e.currentTarget.files?.[0])}
+        ></s-drop-zone>
 
         {lines.length === 0 ? (
           <s-paragraph>{t("Aucun article. Ajoutez des produits, un bon de commande, un transfert ou un fichier CSV.")}</s-paragraph>
         ) : (
+          <>
+          <s-stack direction="inline" gap="base" alignItems="end">
+            <s-search-field
+              label={t("Rechercher dans la file")}
+              placeholder={t("Titre, variante, SKU ou code-barres")}
+              value={query}
+              onInput={(e) => {
+                setQuery(e.currentTarget.value);
+                setPage(0);
+              }}
+            ></s-search-field>
+            <s-text color="subdued">
+              {t("{n} articles dans la file, {k} à imprimer", { n: lines.length, k: toPrint })}
+            </s-text>
+          </s-stack>
           <s-table>
             <s-table-header-row>
               <s-table-header>{t("Article")}</s-table-header>
@@ -317,9 +360,10 @@ export default function Print() {
               <s-table-header>{t("Code-barres")}</s-table-header>
               <s-table-header>Stock</s-table-header>
               <s-table-header>{t("Étiquettes")}</s-table-header>
+              <s-table-header></s-table-header>
             </s-table-header-row>
             <s-table-body>
-              {lines.map((l) => (
+              {shown.map((l) => (
                 <s-table-row key={l.variantId}>
                   <s-table-cell>{l.title}{l.variantTitle ? ` · ${l.variantTitle}` : ""}</s-table-cell>
                   <s-table-cell>{l.sku}</s-table-cell>
@@ -335,10 +379,22 @@ export default function Print() {
                       onChange={(e) => setQuantity(l.variantId, Number(e.currentTarget.value))}
                     ></s-number-field>
                   </s-table-cell>
+                  <s-table-cell>
+                    <s-button variant="tertiary" icon="x" accessibilityLabel={t("Retirer de la file")} onClick={() => remove(l.variantId)}></s-button>
+                  </s-table-cell>
                 </s-table-row>
               ))}
             </s-table-body>
           </s-table>
+          {visible.length === 0 && <s-paragraph>{t("Aucun article ne correspond à la recherche.")}</s-paragraph>}
+          {pages > 1 && (
+            <s-stack direction="inline" gap="base" alignItems="center">
+              <s-button icon="chevron-left" disabled={currentPage === 0} onClick={() => setPage(currentPage - 1)}>{t("Précédent")}</s-button>
+              <s-text>{t("Page {page} sur {pages}", { page: currentPage + 1, pages })}</s-text>
+              <s-button icon="chevron-right" disabled={currentPage >= pages - 1} onClick={() => setPage(currentPage + 1)}>{t("Suivant")}</s-button>
+            </s-stack>
+          )}
+          </>
         )}
       </s-section>
 
@@ -357,7 +413,7 @@ export default function Print() {
         )}
       </s-section>
 
-      <s-section heading={t("{n} étiquettes", { n: total })}>
+      <s-section heading={t(labelCount(total), { n: total })}>
         <s-stack direction="inline" gap="base">
           <s-button variant="primary" disabled={busy || total === 0} onClick={print}>{t("Imprimer")}</s-button>
           <s-button disabled={busy || total === 0} onClick={showPreview}>{t("Aperçu")}</s-button>
